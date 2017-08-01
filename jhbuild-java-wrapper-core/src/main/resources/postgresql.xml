@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE moduleset SYSTEM "moduleset.dtd">
+<?xml-stylesheet type="text/xsl" href="moduleset.xsl"?>
+<moduleset>
+
+  <repository type="tarball" name="postgresql"
+      href="https://ftp.postgresql.org/pub/source/"/>
+
+  <autotools id="postgresql-9.6.3">
+    <branch repo="postgresql" module="v9.6.3/postgresql-9.6.3.tar.bz2" version="9.6.3"/>
+    <dependencies>
+    </dependencies>
+  </autotools>
+</moduleset>
