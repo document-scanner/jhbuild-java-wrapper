@@ -17,16 +17,24 @@ package richtercloud.jhbuild.java.wrapper;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import java.awt.Window;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import richtercloud.message.handler.ExceptionMessage;
+import richtercloud.message.handler.IssueHandler;
 
 /**
  * A wrapper around GNOME's JHBuild build and dependency manager which allows
@@ -134,6 +142,7 @@ public class JHBuildJavaWrapper {
      * redirected to {@code stderr} of the JVM.
      */
     private final boolean silenceStderr;
+    private final IssueHandler issueHandler;
 
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
@@ -142,7 +151,8 @@ public class JHBuildJavaWrapper {
             Window downloadDialogParent,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
-            boolean silenceStderr) {
+            boolean silenceStderr,
+            IssueHandler issueHandler) {
         this(installationPrefixDir,
                 downloadDir,
                 GIT_DEFAULT,
@@ -154,7 +164,8 @@ public class JHBuildJavaWrapper {
                 silenceStdout,
                 silenceStderr,
                 actionOnMissingGit,
-                actionOnMissingJHBuild);
+                actionOnMissingJHBuild,
+                issueHandler);
     }
 
     public JHBuildJavaWrapper(File installationPrefixDir,
@@ -168,7 +179,8 @@ public class JHBuildJavaWrapper {
             boolean silenceStdout,
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
-            ActionOnMissingBinary actionOnMissingJHBuild) {
+            ActionOnMissingBinary actionOnMissingJHBuild,
+            IssueHandler issueHandler) {
         this.installationPrefixDir = installationPrefixDir;
         this.downloadDir = downloadDir;
         this.git = git;
@@ -181,6 +193,7 @@ public class JHBuildJavaWrapper {
         this.skipMD5SumCheck = skipMD5SumCheck;
         this.silenceStdout = silenceStdout;
         this.silenceStderr = silenceStderr;
+        this.issueHandler = issueHandler;
     }
 
     private Process buildProcess(String path,
@@ -191,9 +204,57 @@ public class JHBuildJavaWrapper {
         return retValue;
     }
 
+    private Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
+
+    private class OutputReaderThread extends Thread {
+        private final StringBuilder outputBuilder = new StringBuilder();
+        /**
+         * The process stream to read ({@code stdout} or {@code stderr}).
+         */
+        private final InputStream processStream;
+
+        /**
+         * Creates a new {@code OutputReaderThread}.
+         *
+         * @param process the process whose streams to read from
+         * @param stdout if {@code true}, then {@code stdout} is read, otherwise
+         * {@code stderr}
+         */
+        public OutputReaderThread(InputStream processStream) {
+            this.processStream = processStream;
+        }
+
+        public StringBuilder getOutputBuilder() {
+            return outputBuilder;
+        }
+
+        @Override
+        public void run() {
+            try {
+                BufferedReader outputReader = new BufferedReader(new InputStreamReader(processStream));
+                //testing for outputReader.ready causes thread to terminate
+                //before the end of the output is reached
+                String line;
+                while((line = outputReader.readLine()) != null) {
+                    LOGGER.trace(line);
+                    outputBuilder.append(line);
+                }
+                LOGGER.trace("output reader thread terminated");
+            } catch (IOException ex) {
+                issueHandler.handleUnexpectedException(new ExceptionMessage(ex));
+            }
+        }
+    }
+
     private Process buildProcess(File directory,
             String path,
             String... commands) throws IOException {
+        LOGGER.trace(String.format("building process with commands '%s' with PATH '%s' running in %s",
+                Arrays.asList(commands),
+                path,
+                directory != null ? String.format("directory '%s'",
+                        directory.getAbsolutePath())
+                        : "current directory"));
         ProcessBuilder processBuilder = new ProcessBuilder(sh, "-c", String.join(" ", commands))
                 .redirectOutput(silenceStdout ? Redirect.PIPE : Redirect.INHERIT)
                 .redirectError(silenceStderr ? Redirect.PIPE : Redirect.INHERIT);
@@ -207,6 +268,19 @@ public class JHBuildJavaWrapper {
         processBuilder.environment().put("PATH",
                 path);
         Process retValue = processBuilder.start();
+        if(silenceStdout || silenceStderr) {
+            OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
+            if(silenceStdout) {
+                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream());
+                stdoutReaderThread.start();
+            }
+            if(silenceStderr) {
+                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream());
+                stderrReaderThread.start();
+            }
+            processOutputReaderThreadMap.put(retValue,
+                    new ImmutablePair<>(stdoutReaderThread, stderrReaderThread));
+        }
         return retValue;
     }
 
@@ -221,6 +295,10 @@ public class JHBuildJavaWrapper {
             LOGGER.debug("already inited");
             return;
         }
+        LOGGER.trace(String.format("silenceStdout: %s",
+                silenceStdout));
+        LOGGER.trace(String.format("silenceStderr: %s",
+                silenceStderr));
         try {
             BinaryTools.validateBinary(git,
                     "git",
@@ -392,13 +470,13 @@ public class JHBuildJavaWrapper {
             Process failedBuildProcess) throws BuildFailureException, IOException {
         String stdout = null;
         String stderr = null;
-        if(!silenceStdout) {
-            stdout = IOUtils.toString(failedBuildProcess.getInputStream(),
-                    Charsets.UTF_8);
+        if(silenceStdout) {
+            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getKey();
+            stdout = stdoutReaderThread.getOutputBuilder().toString();
         }
-        if(!silenceStderr) {
-            stderr = IOUtils.toString(failedBuildProcess.getErrorStream(),
-                    Charsets.UTF_8);
+        if(silenceStderr) {
+            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getValue();
+            stderr = stderrReaderThread.getOutputBuilder().toString();
         }
         throw new BuildFailureException(moduleName,
                 buildFailureStep,

@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Test;
+import static org.mockito.Mockito.mock;
 import richtercloud.jhbuild.java.wrapper.ActionOnMissingBinary;
 import richtercloud.jhbuild.java.wrapper.ArchitectureNotRecognizedException;
 import richtercloud.jhbuild.java.wrapper.BuildFailureException;
@@ -27,6 +28,7 @@ import richtercloud.jhbuild.java.wrapper.ExtractionException;
 import richtercloud.jhbuild.java.wrapper.JHBuildJavaWrapper;
 import richtercloud.jhbuild.java.wrapper.MissingSystemBinary;
 import richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
+import richtercloud.message.handler.IssueHandler;
 
 /**
  *
@@ -44,29 +46,35 @@ public class JHBuildJavaWrapperIT {
             BuildFailureException {
         File installationPrefixDir = Files.createTempDirectory(JHBuildJavaWrapperIT.class.getSimpleName()).toFile();
         File downloadDir = new File(SystemUtils.getUserHome(), "sources");
+        IssueHandler issueHandler = mock(IssueHandler.class);
         JHBuildJavaWrapper jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
                 downloadDir,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 null, //downloadDialogParent
                 false, //skipMD5SumCheck
-                false, //silenceStdout
-                false //silenceStderr
+                true, //silenceStdout (saves log capacity on Travis CI service
+                    //with 4MB log size limit and doesn't hurt because stdout
+                    //and stderr are printed in BuildFailureException message)
+                true, //silenceStderr
+                issueHandler
         );
         InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetFileInputStream != null;
         jHBuildJavaWrapper.installModuleset(modulesetFileInputStream,
                 "postgresql-9.6.3");
-        //one stream silenced (might block if output retrieval isn't handled
-        //correctly) + omitted parameter causing fallback to default moduleset
+        //omitted parameter causing fallback to default moduleset
         jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
                 downloadDir,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 null, //downloadDialogParent
                 false, //skipMD5SumCheck
-                true, //silenceStdout
-                false //silenceStderr
+                true, //silenceStdout (saves log capacity on Travis CI service
+                    //with 4MB log size limit and doesn't hurt because stdout
+                    //and stderr are printed in BuildFailureException message)
+                true, //silenceStderr
+                issueHandler
         );
         jHBuildJavaWrapper.installModuleset("postgresql-9.6.3");
     }
