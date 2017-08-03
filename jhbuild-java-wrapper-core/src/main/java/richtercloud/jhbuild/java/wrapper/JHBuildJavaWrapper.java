@@ -17,12 +17,10 @@ package richtercloud.jhbuild.java.wrapper;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import java.awt.Window;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -33,7 +31,6 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import richtercloud.message.handler.ExceptionMessage;
 import richtercloud.message.handler.IssueHandler;
 
 /**
@@ -154,6 +151,7 @@ public class JHBuildJavaWrapper {
      * returning after cancelation has been requested.
      */
     private Process activeProcess = null;
+    private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
 
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
@@ -215,48 +213,6 @@ public class JHBuildJavaWrapper {
         return retValue;
     }
 
-    private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
-
-    private class OutputReaderThread extends Thread {
-        private final StringBuilder outputBuilder = new StringBuilder();
-        /**
-         * The process stream to read ({@code stdout} or {@code stderr}).
-         */
-        private final InputStream processStream;
-
-        /**
-         * Creates a new {@code OutputReaderThread}.
-         *
-         * @param process the process whose streams to read from
-         * @param stdout if {@code true}, then {@code stdout} is read, otherwise
-         * {@code stderr}
-         */
-        public OutputReaderThread(InputStream processStream) {
-            this.processStream = processStream;
-        }
-
-        public StringBuilder getOutputBuilder() {
-            return outputBuilder;
-        }
-
-        @Override
-        public void run() {
-            try {
-                BufferedReader outputReader = new BufferedReader(new InputStreamReader(processStream));
-                //testing for outputReader.ready causes thread to terminate
-                //before the end of the output is reached
-                String line;
-                while((line = outputReader.readLine()) != null) {
-                    LOGGER.trace(line);
-                    outputBuilder.append(line);
-                }
-                LOGGER.trace("output reader thread terminated");
-            } catch (IOException ex) {
-                issueHandler.handleUnexpectedException(new ExceptionMessage(ex));
-            }
-        }
-    }
-
     /**
      * Allows sharing code between different process creation routines.
      *
@@ -298,11 +254,13 @@ public class JHBuildJavaWrapper {
         if(silenceStdout || silenceStderr) {
             OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
             if(silenceStdout) {
-                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream());
+                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream(),
+                        issueHandler);
                 stdoutReaderThread.start();
             }
             if(silenceStderr) {
-                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream());
+                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream(),
+                        issueHandler);
                 stderrReaderThread.start();
             }
             processOutputReaderThreadMap.put(retValue,
