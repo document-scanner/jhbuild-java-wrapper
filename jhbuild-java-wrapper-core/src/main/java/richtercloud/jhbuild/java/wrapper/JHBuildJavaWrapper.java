@@ -63,6 +63,10 @@ import richtercloud.message.handler.IssueHandler;
  * build results under the user's home directory since there's few incentive to
  * make the location configurable.
  *
+ * Only the {@link #cancelInstallModuleset() } is allowed to be called from
+ * another thread, calls to other methods from other threads result in
+ * unpredictable behaviour.
+ *
  * @author richter
  */
 public class JHBuildJavaWrapper {
@@ -121,7 +125,7 @@ public class JHBuildJavaWrapper {
     internal implementation notes:
     - @TODO: allow passing custom mapping
     */
-    private Map<SupportedOS, DownloadCombi> oSDownloadCombiGitMap = new ImmutableMap.Builder<SupportedOS, DownloadCombi>()
+    private final Map<SupportedOS, DownloadCombi> oSDownloadCombiGitMap = new ImmutableMap.Builder<SupportedOS, DownloadCombi>()
             .put(SupportedOS.LINUX_32, GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT)
             .put(SupportedOS.LINUX_64, GIT_DOWNLOAD_COMBI_LINUX_64_DEFAULT)
             .put(SupportedOS.WINDOWS_32, GIT_DOWNLOAD_COMBI_WINDOWS_32_DEFAULT)
@@ -143,6 +147,13 @@ public class JHBuildJavaWrapper {
      */
     private final boolean silenceStderr;
     private final IssueHandler issueHandler;
+    private boolean canceled = false;
+    /**
+     * A pointer to the currently active process which allows to destroy it in
+     * {@link #cancelInstallModuleset() } and thus minimize the time before
+     * returning after cancelation has been requested.
+     */
+    private Process activeProcess = null;
 
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
@@ -196,15 +207,15 @@ public class JHBuildJavaWrapper {
         this.issueHandler = issueHandler;
     }
 
-    private Process buildProcess(String path,
+    private Process createProcess(String path,
             String... commands) throws IOException {
-        Process retValue = buildProcess(null,
+        Process retValue = createProcess(null,
                 path,
                 commands);
         return retValue;
     }
 
-    private Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
+    private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
 
     private class OutputReaderThread extends Thread {
         private final StringBuilder outputBuilder = new StringBuilder();
@@ -246,7 +257,23 @@ public class JHBuildJavaWrapper {
         }
     }
 
-    private Process buildProcess(File directory,
+    /**
+     * Allows sharing code between different process creation routines.
+     *
+     * @param directory
+     * @param path
+     * @param commands
+     * @return
+     * @throws IOException
+     */
+    /*
+    internal implementation notes:
+    - checking for canceled doesn't make sense here because null would have to
+    be returned or an exception thrown in the case of canceled state which
+    creates the need to evaluate the return value by callers which is equally
+    complex as checking the condition before calls to createProcess
+    */
+    private Process createProcess(File directory,
             String path,
             String... commands) throws IOException {
         LOGGER.trace(String.format("building process with commands '%s' with PATH '%s' running in %s",
@@ -280,6 +307,9 @@ public class JHBuildJavaWrapper {
             }
             processOutputReaderThreadMap.put(retValue,
                     new ImmutablePair<>(stdoutReaderThread, stderrReaderThread));
+        }
+        synchronized(this) {
+            this.activeProcess = retValue;
         }
         return retValue;
     }
@@ -339,21 +369,36 @@ public class JHBuildJavaWrapper {
                     //build
                     File extractionLocationDir = new File(gitDownloadCombi.getExtractionLocation());
                     assert extractionLocationDir.exists();
-                    Process gitConfigureProcess = buildProcess(extractionLocationDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process gitConfigureProcess = createProcess(extractionLocationDir,
                             sh, "configure",
                             String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
                     gitConfigureProcess.waitFor();
                     if(gitConfigureProcess.exitValue() != 0) {
                         handleBuilderFailure("git", BuildStep.CONFIGURE, gitConfigureProcess);
                     }
-                    Process gitMakeProcess = buildProcess(extractionLocationDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process gitMakeProcess = createProcess(extractionLocationDir,
                             installationPrefixPath,
                             make);
                     gitMakeProcess.waitFor();
                     if(gitMakeProcess.exitValue() != 0) {
                         handleBuilderFailure("git", BuildStep.MAKE, gitMakeProcess);
                     }
-                    Process gitMakeInstallProcess = buildProcess(extractionLocationDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process gitMakeInstallProcess = createProcess(extractionLocationDir,
                             installationPrefixPath,
                             make,
                             "install");
@@ -391,7 +436,12 @@ public class JHBuildJavaWrapper {
                             && jhbuildCloneDir.list().length > 0) {
                         //check whether the existing non-empty directory is a
                         //valid source root
-                        Process jhbuildSourceRootCheckProcess = buildProcess(jhbuildCloneDir,
+                        synchronized(this) {
+                            if(canceled) {
+                                return;
+                            }
+                        }
+                        Process jhbuildSourceRootCheckProcess = createProcess(jhbuildCloneDir,
                                 installationPrefixPath,
                                 git,
                                 "status");
@@ -412,7 +462,12 @@ public class JHBuildJavaWrapper {
                         needClone = false;
                     }
                     if(needClone) {
-                        Process jhbuildCloneProcess = buildProcess(installationPrefixPath,
+                        synchronized(this) {
+                            if(canceled) {
+                                return;
+                            }
+                        }
+                        Process jhbuildCloneProcess = createProcess(installationPrefixPath,
                                 git,
                                 "clone",
                                 "git://git.gnome.org/jhbuild",
@@ -426,7 +481,12 @@ public class JHBuildJavaWrapper {
                         }
                         LOGGER.debug("jhbuild download finished");
                     }
-                    Process jhbuildAutogenProcess = buildProcess(jhbuildCloneDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process jhbuildAutogenProcess = createProcess(jhbuildCloneDir,
                             installationPrefixPath,
                             sh, "autogen.sh",
                             String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
@@ -437,7 +497,12 @@ public class JHBuildJavaWrapper {
                         handleBuilderFailure("jhbuild", BuildStep.BOOTSTRAP, jhbuildAutogenProcess);
                     }
                     LOGGER.debug("jhbuild build bootstrap process finished");
-                    Process jhbuildMakeProcess = buildProcess(jhbuildCloneDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process jhbuildMakeProcess = createProcess(jhbuildCloneDir,
                             installationPrefixPath,
                             make);
                     LOGGER.debug("waiting for jhbuild build process");
@@ -446,7 +511,12 @@ public class JHBuildJavaWrapper {
                         handleBuilderFailure("jhbuild", BuildStep.MAKE, jhbuildMakeProcess);
                     }
                     LOGGER.debug("jhbuild build process finished");
-                    Process jhbuildMakeInstallProcess = buildProcess(jhbuildCloneDir,
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process jhbuildMakeInstallProcess = createProcess(jhbuildCloneDir,
                             installationPrefixPath,
                             make, "install");
                     LOGGER.debug("waiting for jhbuild installation process");
@@ -484,6 +554,45 @@ public class JHBuildJavaWrapper {
                 stderr);
     }
 
+    /**
+     * Allows cancelation (with minimal delay) from another thread.
+     */
+    public void cancelInstallModuleset() {
+        this.canceled = true;
+        synchronized(this) {
+            if(activeProcess != null) {
+                activeProcess.destroy();
+            }
+        }
+    }
+
+    /**
+     * Check canceled state.
+     *
+     * @return {@code true} if {@link #cancelInstallModuleset() } has been
+     * invoked and no other build process started so far, {@code false}
+     * otherwise
+     */
+    public boolean isCanceled() {
+        return canceled;
+    }
+
+    /**
+     * Tries to find {@code moduleName} in the default moduleset on the
+     * classpath shipped with archive.
+     *
+     * The module installation can be canceled from another thread with
+     * {@link #cancelInstallModuleset() }.
+     *
+     * @param moduleName the module to build
+     * @throws OSNotRecognizedException
+     * @throws ArchitectureNotRecognizedException
+     * @throws IOException
+     * @throws ExtractionException
+     * @throws InterruptedException
+     * @throws MissingSystemBinary
+     * @throws BuildFailureException
+     */
     public void installModuleset(String moduleName) throws OSNotRecognizedException,
             ArchitectureNotRecognizedException,
             IOException,
@@ -498,8 +607,11 @@ public class JHBuildJavaWrapper {
     }
 
     /**
-     * Installs the module with name {@code moduleName} using the moduleset
-     * provided by {@code modulesetInputStream}.
+     * Installs module {@code moduleName} from JHBuild moduleset provided by
+     * {@code modulesetInputStream}.
+     *
+     * The module installation can be canceled from another thread with
+     * {@link #cancelInstallModuleset() }.
      *
      * @param modulesetInputStream
      * @param moduleName
@@ -515,9 +627,9 @@ public class JHBuildJavaWrapper {
      */
     /*
     internal implementation notes:
-    - throwing IllegalArgumentException if modulesetInputStream is null eases
-    catching streams which have been acquired through Class.getResourceAsStream
-    which are null if they're not found
+    - throwing IllegalArgumentException if modulesetInputStream is null improves
+    handling of InputStream which have been acquired through
+    Class.getResourceAsStream since those might be null
     */
     public void installModuleset(InputStream modulesetInputStream,
             String moduleName) throws OSNotRecognizedException,
@@ -527,6 +639,7 @@ public class JHBuildJavaWrapper {
             InterruptedException,
             MissingSystemBinary,
             BuildFailureException {
+        canceled = false;
         if(modulesetInputStream == null) {
             throw new IllegalArgumentException("modulesetInputStream mustn't be null");
         }
@@ -536,7 +649,7 @@ public class JHBuildJavaWrapper {
         LOGGER.debug(String.format("building module %s with jhbuild command %s",
                 moduleName,
                 jhbuild));
-        Process jhbuildBootstrapProcess = buildProcess(installationPrefixPath,
+        Process jhbuildBootstrapProcess = createProcess(installationPrefixPath,
                 jhbuild, "bootstrap");
             //directory doesn't matter
         LOGGER.debug("waiting for jhbuild bootstrap process");
@@ -557,7 +670,7 @@ public class JHBuildJavaWrapper {
         IOUtils.write(jHBuildrcTemplate,
                 new FileOutputStream(jHBuildrcFile),
                 Charsets.UTF_8);
-        Process jhbuildProcess = buildProcess(installationPrefixPath,
+        Process jhbuildProcess = createProcess(installationPrefixPath,
                 jhbuild,
                 String.format("--file=%s",
                         jHBuildrcFile.getAbsolutePath()),
