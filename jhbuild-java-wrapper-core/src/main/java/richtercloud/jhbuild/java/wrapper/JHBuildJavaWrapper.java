@@ -308,19 +308,46 @@ public class JHBuildJavaWrapper {
                             jhbuild));
                 case DOWNLOAD:
                     File jhbuildCloneDir = new File(downloadDir, "jhbuild");
-                    Process jhbuildCloneProcess = buildProcess(installationPrefixPath,
-                            git,
-                            "clone",
-                            "git://git.gnome.org/jhbuild",
-                            jhbuildCloneDir.getAbsolutePath());
-                        //directory doesn't matter because target path is
-                        //absolute
-                    LOGGER.debug("waiting for jhbuild download");
-                    jhbuildCloneProcess.waitFor();
-                    if(jhbuildCloneProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.CLONE, jhbuildCloneProcess);
+                    boolean needClone = true;
+                    if(jhbuildCloneDir.exists()
+                            && jhbuildCloneDir.list().length > 0) {
+                        //check whether the existing non-empty directory is a
+                        //valid source root
+                        Process jhbuildSourceRootCheckProcess = buildProcess(jhbuildCloneDir,
+                                installationPrefixPath,
+                                git,
+                                "status");
+                        LOGGER.debug("waiting for jhbuild source root check");
+                        jhbuildSourceRootCheckProcess.waitFor();
+                        if(jhbuildSourceRootCheckProcess.exitValue() != 0) {
+                            throw new IllegalStateException(String.format("The "
+                                    + "jhbuild clone directory '%s' already "
+                                    + "exist, is not empty and is not a valid "
+                                    + "git source root. This might be the "
+                                    + "result of a failing previous checkout. "
+                                    + "You need to check and eventually delete "
+                                    + "the existing directory or specify "
+                                    + "another download directory for JHBuild "
+                                    + "Java wrapper.",
+                                    jhbuildCloneDir.getAbsolutePath()));
+                        }
+                        needClone = false;
                     }
-                    LOGGER.debug("jhbuild download finished");
+                    if(needClone) {
+                        Process jhbuildCloneProcess = buildProcess(installationPrefixPath,
+                                git,
+                                "clone",
+                                "git://git.gnome.org/jhbuild",
+                                jhbuildCloneDir.getAbsolutePath());
+                            //directory doesn't matter because target path is
+                            //absolute
+                        LOGGER.debug("waiting for jhbuild download");
+                        jhbuildCloneProcess.waitFor();
+                        if(jhbuildCloneProcess.exitValue() != 0) {
+                            handleBuilderFailure("jhbuild", BuildStep.CLONE, jhbuildCloneProcess);
+                        }
+                        LOGGER.debug("jhbuild download finished");
+                    }
                     Process jhbuildAutogenProcess = buildProcess(jhbuildCloneDir,
                             installationPrefixPath,
                             sh, "autogen.sh",

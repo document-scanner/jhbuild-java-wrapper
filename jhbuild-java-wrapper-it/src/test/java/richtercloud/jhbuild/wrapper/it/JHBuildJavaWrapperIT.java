@@ -50,7 +50,8 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 null, //downloadDialogParent
                 false, //skipMD5SumCheck
-                false, //silenceStdout
+                true, //silenceStdout (necesary in order to not exceed Travis CI
+                    //build log size limit of 4MB)
                 false //silenceStderr
         );
         InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/postgresql.xml");
