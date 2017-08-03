@@ -2,7 +2,8 @@
 <!DOCTYPE moduleset SYSTEM "moduleset.dtd">
 <?xml-stylesheet type="text/xsl" href="moduleset.xsl"?>
 <moduleset>
-
+  <!-- an ever-growing collection of dependencies of modules which is used as
+    fallback if the user didn't specify a moduleset -->
   <repository type="tarball" name="postgresql"
       href="https://ftp.postgresql.org/pub/source/"/>
 

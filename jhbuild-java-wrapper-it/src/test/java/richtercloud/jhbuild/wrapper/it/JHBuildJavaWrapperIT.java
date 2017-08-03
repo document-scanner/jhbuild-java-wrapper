@@ -50,13 +50,24 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 null, //downloadDialogParent
                 false, //skipMD5SumCheck
-                true, //silenceStdout (necesary in order to not exceed Travis CI
-                    //build log size limit of 4MB)
+                false, //silenceStdout
                 false //silenceStderr
         );
-        InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/postgresql.xml");
+        InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetFileInputStream != null;
         jHBuildJavaWrapper.installModuleset(modulesetFileInputStream,
                 "postgresql-9.6.3");
+        //one stream silenced (might block if output retrieval isn't handled
+        //correctly) + omitted parameter causing fallback to default moduleset
+        jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
+                downloadDir,
+                ActionOnMissingBinary.DOWNLOAD,
+                ActionOnMissingBinary.DOWNLOAD,
+                null, //downloadDialogParent
+                false, //skipMD5SumCheck
+                true, //silenceStdout
+                false //silenceStderr
+        );
+        jHBuildJavaWrapper.installModuleset("postgresql-9.6.3");
     }
 }

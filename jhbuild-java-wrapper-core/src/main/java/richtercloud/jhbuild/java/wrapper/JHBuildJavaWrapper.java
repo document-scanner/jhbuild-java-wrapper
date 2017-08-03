@@ -406,6 +406,41 @@ public class JHBuildJavaWrapper {
                 stderr);
     }
 
+    public void installModuleset(String moduleName) throws OSNotRecognizedException,
+            ArchitectureNotRecognizedException,
+            IOException,
+            ExtractionException,
+            InterruptedException,
+            MissingSystemBinary,
+            BuildFailureException {
+        InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
+        assert modulesetInputStream != null;
+        installModuleset(modulesetInputStream,
+                moduleName);
+    }
+
+    /**
+     * Installs the module with name {@code moduleName} using the moduleset
+     * provided by {@code modulesetInputStream}.
+     *
+     * @param modulesetInputStream
+     * @param moduleName
+     * @throws OSNotRecognizedException
+     * @throws ArchitectureNotRecognizedException
+     * @throws IOException
+     * @throws ExtractionException
+     * @throws InterruptedException
+     * @throws MissingSystemBinary
+     * @throws BuildFailureException
+     * @throws IllegalArgumentException if {@code modulesetInputStream} is
+     * {@code null}
+     */
+    /*
+    internal implementation notes:
+    - throwing IllegalArgumentException if modulesetInputStream is null eases
+    catching streams which have been acquired through Class.getResourceAsStream
+    which are null if they're not found
+    */
     public void installModuleset(InputStream modulesetInputStream,
             String moduleName) throws OSNotRecognizedException,
             ArchitectureNotRecognizedException,
@@ -414,6 +449,9 @@ public class JHBuildJavaWrapper {
             InterruptedException,
             MissingSystemBinary,
             BuildFailureException {
+        if(modulesetInputStream == null) {
+            throw new IllegalArgumentException("modulesetInputStream mustn't be null");
+        }
         String installationPrefixPath = String.join(File.pathSeparator, System.getenv("PATH"),
                 String.join(File.separator, installationPrefixDir.getAbsolutePath(), "bin"));
         init(installationPrefixPath);
