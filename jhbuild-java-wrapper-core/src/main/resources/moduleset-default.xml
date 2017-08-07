@@ -12,4 +12,9 @@
     <dependencies>
     </dependencies>
   </autotools>
+  <autotools id="postgresql-9.5.7">
+    <branch repo="postgresql" module="v9.5.7/postgresql-9.5.7.tar.bz2" version="9.5.7"/>
+    <dependencies>
+    </dependencies>
+  </autotools>
 </moduleset>
