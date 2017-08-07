@@ -255,12 +255,12 @@ public class JHBuildJavaWrapper {
             OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
             if(silenceStdout) {
                 stdoutReaderThread = new OutputReaderThread(retValue.getInputStream(),
-                        issueHandler);
+                        retValue);
                 stdoutReaderThread.start();
             }
             if(silenceStderr) {
                 stderrReaderThread = new OutputReaderThread(retValue.getErrorStream(),
-                        issueHandler);
+                        retValue);
                 stderrReaderThread.start();
             }
             processOutputReaderThreadMap.put(retValue,

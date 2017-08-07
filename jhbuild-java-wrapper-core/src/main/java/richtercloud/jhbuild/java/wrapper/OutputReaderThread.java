@@ -14,14 +14,10 @@
  */
 package richtercloud.jhbuild.java.wrapper;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import richtercloud.message.handler.ExceptionMessage;
-import richtercloud.message.handler.IssueHandler;
 
 /**
  *
@@ -34,7 +30,7 @@ public class OutputReaderThread extends Thread {
      * The process stream to read ({@code stdout} or {@code stderr}).
      */
     private final InputStream processStream;
-    private final IssueHandler issueHandler;
+    private final Process process;
 
     /**
      * Creates a new {@code OutputReaderThread}.
@@ -43,9 +39,9 @@ public class OutputReaderThread extends Thread {
      * @param issueHandler the issue handler for exceptions in this thread
      */
     public OutputReaderThread(InputStream processStream,
-            IssueHandler issueHandler) {
+            Process process) {
         this.processStream = processStream;
-        this.issueHandler = issueHandler;
+        this.process = process;
     }
 
     /**
@@ -57,11 +53,11 @@ public class OutputReaderThread extends Thread {
      * {@link Thread#Thread(java.lang.String) } for details)
      */
     public OutputReaderThread(InputStream processStream,
-            IssueHandler issueHandler,
+            Process process,
             String name) {
         super(name);
         this.processStream = processStream;
-        this.issueHandler = issueHandler;
+        this.process = process;
     }
 
     public StringBuilder getOutputBuilder() {
@@ -70,19 +66,26 @@ public class OutputReaderThread extends Thread {
 
     @Override
     public void run() {
-        try {
-            BufferedReader outputReader = new BufferedReader(new InputStreamReader(processStream));
-            //testing for outputReader.ready causes thread to terminate
-            //before the end of the output is reached
-            String line;
-            while((line = outputReader.readLine()) != null) {
+        //Using a BufferedReader buffering an InputStreamReader or the
+        //InputStreamReader directly causes random deadlocks because of
+        //blocks at BufferedReader.readLine or InputStreamReader.read after
+        //Process.destory. Those simply don't ever happen with Scanner, so
+        //Scanner is used. The tip comes from
+        //https://stackoverflow.com/questions/30846870/java-problems-with-reading-from-process-output.
+        //Using Scanner avoids the need to catch IOException and thus passing an
+        //IssueHandler reference.
+        Scanner scanner = new Scanner(processStream);
+        //testing for BufferedReader.ready causes thread to terminate
+        //before the end of the output is reached
+        while(process.isAlive()) {
+            while(scanner.hasNext()) {
+                String line = scanner.nextLine();
                 LOGGER.trace(String.format("[output reader] %s",
                         line));
-                outputBuilder.append(line);
+                outputBuilder.append(line)
+                        .append("\n");
             }
-            LOGGER.trace("output reader thread terminated");
-        } catch (IOException ex) {
-            issueHandler.handleUnexpectedException(new ExceptionMessage(ex));
         }
+        LOGGER.trace("output reader thread terminated");
     }
 }
