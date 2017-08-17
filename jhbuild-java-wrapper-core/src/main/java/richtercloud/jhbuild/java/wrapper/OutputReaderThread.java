@@ -75,16 +75,17 @@ public class OutputReaderThread extends Thread {
         //Using Scanner avoids the need to catch IOException and thus passing an
         //IssueHandler reference.
         Scanner scanner = new Scanner(processStream);
-        //testing for BufferedReader.ready causes thread to terminate
+        //Condition to loop over:
+        //- testing for BufferedReader.ready causes thread to terminate
         //before the end of the output is reached
-        while(process.isAlive()) {
-            while(scanner.hasNext()) {
-                String line = scanner.nextLine();
-                LOGGER.trace(String.format("[output reader] %s",
-                        line));
-                outputBuilder.append(line)
-                        .append("\n");
-            }
+        //- testing for process.isAlive doesn't make sense because it discards
+        //output after the process terminated
+        while(scanner.hasNext()) {
+            String line = scanner.nextLine();
+            LOGGER.trace(String.format("[output reader] %s",
+                    line));
+            outputBuilder.append(line)
+                    .append("\n");
         }
         LOGGER.trace("output reader thread terminated");
     }
