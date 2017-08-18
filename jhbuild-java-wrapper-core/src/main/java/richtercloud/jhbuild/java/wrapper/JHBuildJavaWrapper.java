@@ -16,7 +16,6 @@ package richtercloud.jhbuild.java.wrapper;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
-import java.awt.Window;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -31,6 +30,10 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
+import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallbackReation;
+import richtercloud.jhbuild.java.wrapper.download.DownloadTools;
+import richtercloud.jhbuild.java.wrapper.download.Downloader;
 import richtercloud.message.handler.IssueHandler;
 
 /**
@@ -128,7 +131,6 @@ public class JHBuildJavaWrapper {
             .put(SupportedOS.WINDOWS_32, GIT_DOWNLOAD_COMBI_WINDOWS_32_DEFAULT)
             .put(SupportedOS.WINDOWS_64, GIT_DOWNLOAD_COMBI_WINDOWS_64_DEFAULT)
             .put(SupportedOS.MAC_OSX_64, GIT_DOWNLOAD_COMBI_MAC_OSX_DEFAULT).build();
-    private final Window downloadDialogParent;
     private final boolean skipMD5SumCheck;
     private final File installationPrefixDir;
     private final File downloadDir;
@@ -152,12 +154,13 @@ public class JHBuildJavaWrapper {
      */
     private Process activeProcess = null;
     private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
+    private final Downloader downloader;
 
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
-            Window downloadDialogParent,
+            Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
             boolean silenceStderr,
@@ -168,7 +171,7 @@ public class JHBuildJavaWrapper {
                 JHBUILD_DEFAULT,
                 SH_DEFAULT,
                 MAKE_DEFAULT,
-                downloadDialogParent,
+                downloader,
                 skipMD5SumCheck,
                 silenceStdout,
                 silenceStderr,
@@ -183,20 +186,27 @@ public class JHBuildJavaWrapper {
             String jhbuild,
             String sh,
             String make,
-            Window downloadDialogParent,
+            Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
             IssueHandler issueHandler) {
+        if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
+            throw new IllegalArgumentException("installationPrefixDir points "
+                    + "to an existing location and is not a directory");
+        }
         this.installationPrefixDir = installationPrefixDir;
         this.downloadDir = downloadDir;
         this.git = git;
         this.jhbuild = jhbuild;
         this.sh = sh;
         this.make = make;
-        this.downloadDialogParent = downloadDialogParent;
+        if(downloader == null) {
+            throw new IllegalArgumentException("downloader mustn't be null");
+        }
+        this.downloader = downloader;
         this.actionOnMissingGit = actionOnMissingGit;
         this.actionOnMissingJHBuild = actionOnMissingJHBuild;
         this.skipMD5SumCheck = skipMD5SumCheck;
@@ -299,11 +309,7 @@ public class JHBuildJavaWrapper {
                 case DOWNLOAD:
                     SupportedOS currentOS = DownloadTools.getCurrentOS();
                     DownloadCombi gitDownloadCombi = oSDownloadCombiGitMap.get(currentOS);
-                    boolean notCanceled = DownloadTools.downloadFile(gitDownloadCombi,
-                            downloadDialogParent,
-                            "Downloading git", //downloadDialogTitle
-                            "Downloading git", //downloadDialogLabelText
-                            "Downloading git", //downloadDialogProgressBarText
+                    boolean notCanceled = downloader.downloadFile(gitDownloadCombi,
                             skipMD5SumCheck,
                         ex1 -> {
                             return DownloadFailureCallbackReation.RETRY;
@@ -495,15 +501,17 @@ public class JHBuildJavaWrapper {
 
     private void handleBuilderFailure(String moduleName,
             BuildStep buildFailureStep,
-            Process failedBuildProcess) throws BuildFailureException, IOException {
+            Process failedBuildProcess) throws BuildFailureException, IOException, InterruptedException {
         String stdout = null;
         String stderr = null;
         if(silenceStdout) {
             OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getKey();
+            stdoutReaderThread.join();
             stdout = stdoutReaderThread.getOutputBuilder().toString();
         }
         if(silenceStderr) {
             OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getValue();
+            stderrReaderThread.join();
             stderr = stderrReaderThread.getOutputBuilder().toString();
         }
         throw new BuildFailureException(moduleName,
@@ -557,7 +565,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
-            BuildFailureException {
+            BuildFailureException,
+            ModuleBuildFailureException {
         InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetInputStream != null;
         installModuleset(modulesetInputStream,
@@ -596,7 +605,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
-            BuildFailureException {
+            BuildFailureException,
+            ModuleBuildFailureException {
         canceled = false;
         if(modulesetInputStream == null) {
             throw new IllegalArgumentException("modulesetInputStream mustn't be null");
@@ -643,7 +653,16 @@ public class JHBuildJavaWrapper {
         LOGGER.debug("waiting for jhbuild build process");
         jhbuildProcess.waitFor();
         if(jhbuildProcess.exitValue() != 0) {
-            throw new RuntimeException(); //@TODO:
+            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(jhbuildProcess).getKey();
+            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(jhbuildProcess).getValue();
+            stdoutReaderThread.join();
+            stderrReaderThread.join();
+            throw new ModuleBuildFailureException(String.format("jhbuild "
+                    + "returned with code %d during building of module (stdout "
+                    + "was '%s' and stderr was '%s'",
+                    jhbuildProcess.exitValue(),
+                    stdoutReaderThread.getOutputBuilder().toString(),
+                    stderrReaderThread.getOutputBuilder().toString()));
         }
         LOGGER.debug("jhbuild build process finished");
     }

@@ -12,10 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package richtercloud.jhbuild.java.wrapper;
+package richtercloud.jhbuild.java.wrapper.download;
 
 import java.awt.Window;
 import org.apache.commons.lang3.StringUtils;
+import richtercloud.jhbuild.java.wrapper.ExtractionMode;
 
 /**
  *

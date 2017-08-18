@@ -14,24 +14,23 @@
  */
 package richtercloud.jhbuild.java.wrapper;
 
-import richtercloud.message.handler.ConfirmOption;
-
 /**
+ * An expection indicating a failure of JHBuild during the module build.
  *
  * @author richter
  */
-public enum DownloadFailureCallbackReation implements ConfirmOption {
-    CANCEL("Cancel"),
-    RETRY("Retry");
+public class ModuleBuildFailureException extends Exception {
+    private static final long serialVersionUID = 1L;
 
-    private final String label;
-
-    private DownloadFailureCallbackReation(String label) {
-        this.label = label;
+    public ModuleBuildFailureException(String message) {
+        super(message);
     }
 
-    @Override
-    public String getLabel() {
-        return label;
+    public ModuleBuildFailureException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public ModuleBuildFailureException(Throwable cause) {
+        super(cause);
     }
 }

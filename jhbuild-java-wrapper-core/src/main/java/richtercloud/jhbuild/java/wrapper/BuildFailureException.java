@@ -15,6 +15,7 @@
 package richtercloud.jhbuild.java.wrapper;
 
 /**
+ * An exception occuring in a build outside the automated steps of jhbuild.
  *
  * @author richter
  */

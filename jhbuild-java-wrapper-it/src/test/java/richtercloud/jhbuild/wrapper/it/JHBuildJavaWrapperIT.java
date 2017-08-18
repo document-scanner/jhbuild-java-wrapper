@@ -27,7 +27,10 @@ import richtercloud.jhbuild.java.wrapper.BuildFailureException;
 import richtercloud.jhbuild.java.wrapper.ExtractionException;
 import richtercloud.jhbuild.java.wrapper.JHBuildJavaWrapper;
 import richtercloud.jhbuild.java.wrapper.MissingSystemBinary;
+import richtercloud.jhbuild.java.wrapper.ModuleBuildFailureException;
 import richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
+import richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
+import richtercloud.jhbuild.java.wrapper.download.Downloader;
 import richtercloud.message.handler.IssueHandler;
 
 /**
@@ -43,15 +46,17 @@ public class JHBuildJavaWrapperIT {
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
-            BuildFailureException {
+            BuildFailureException,
+            ModuleBuildFailureException {
         File installationPrefixDir = Files.createTempDirectory(JHBuildJavaWrapperIT.class.getSimpleName()).toFile();
         File downloadDir = new File(SystemUtils.getUserHome(), "sources");
         IssueHandler issueHandler = mock(IssueHandler.class);
+        Downloader downloader = new AutoDownloader();
         JHBuildJavaWrapper jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
                 downloadDir,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
-                null, //downloadDialogParent
+                downloader, //downloader
                 false, //skipMD5SumCheck
                 true, //silenceStdout (saves log capacity on Travis CI service
                     //with 4MB log size limit and doesn't hurt because stdout
@@ -68,7 +73,7 @@ public class JHBuildJavaWrapperIT {
                 downloadDir,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
-                null, //downloadDialogParent
+                downloader, //downloader
                 false, //skipMD5SumCheck
                 true, //silenceStdout (saves log capacity on Travis CI service
                     //with 4MB log size limit and doesn't hurt because stdout
