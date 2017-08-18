@@ -412,6 +412,10 @@ public class JHBuildJavaWrapper {
                         LOGGER.debug("waiting for jhbuild source root check");
                         jhbuildSourceRootCheckProcess.waitFor();
                         if(jhbuildSourceRootCheckProcess.exitValue() != 0) {
+                            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getKey();
+                            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getValue();
+                            stdoutReaderThread.join();
+                            stderrReaderThread.join();
                             throw new IllegalStateException(String.format("The "
                                     + "jhbuild clone directory '%s' already "
                                     + "exist, is not empty and is not a valid "
@@ -420,8 +424,11 @@ public class JHBuildJavaWrapper {
                                     + "You need to check and eventually delete "
                                     + "the existing directory or specify "
                                     + "another download directory for JHBuild "
-                                    + "Java wrapper.",
-                                    jhbuildCloneDir.getAbsolutePath()));
+                                    + "Java wrapper (git status process had "
+                                    + "stdout '%s' and stderr '%s').",
+                                    jhbuildCloneDir.getAbsolutePath(),
+                                    stdoutReaderThread.getOutputBuilder().toString(),
+                                    stderrReaderThread.getOutputBuilder().toString()));
                         }
                         needClone = false;
                     }
