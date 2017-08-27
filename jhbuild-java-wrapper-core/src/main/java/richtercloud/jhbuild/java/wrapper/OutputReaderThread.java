@@ -15,6 +15,7 @@
 package richtercloud.jhbuild.java.wrapper;
 
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +26,14 @@ import org.slf4j.LoggerFactory;
  */
 public class OutputReaderThread extends Thread {
     private final static Logger LOGGER = LoggerFactory.getLogger(OutputReaderThread.class);
-    private final StringBuilder outputBuilder = new StringBuilder();
+    private final static int OUTPUT_BUILDER_CAPACITY_DEFAULT = 2048;
+    private final StringBuilder outputBuilder = new StringBuilder(OUTPUT_BUILDER_CAPACITY_DEFAULT);
     /**
      * The process stream to read ({@code stdout} or {@code stderr}).
      */
     private final InputStream processStream;
     private final Process process;
+    private final Charset charset;
 
     /**
      * Creates a new {@code OutputReaderThread}.
@@ -40,8 +43,17 @@ public class OutputReaderThread extends Thread {
      */
     public OutputReaderThread(InputStream processStream,
             Process process) {
+        this(processStream,
+                process,
+                Charset.defaultCharset());
+    }
+
+    public OutputReaderThread(InputStream processStream,
+            Process process,
+            Charset charset) {
         this.processStream = processStream;
         this.process = process;
+        this.charset = charset;
     }
 
     /**
@@ -55,9 +67,20 @@ public class OutputReaderThread extends Thread {
     public OutputReaderThread(InputStream processStream,
             Process process,
             String name) {
+        this(processStream,
+                process,
+                Charset.defaultCharset(),
+                name);
+    }
+
+    public OutputReaderThread(InputStream processStream,
+            Process process,
+            Charset charset,
+            String name) {
         super(name);
         this.processStream = processStream;
         this.process = process;
+        this.charset = charset;
     }
 
     public StringBuilder getOutputBuilder() {
@@ -75,11 +98,17 @@ public class OutputReaderThread extends Thread {
         //Using Scanner avoids the need to catch IOException and thus passing an
         //IssueHandler reference.
         Scanner scanner = new Scanner(processStream);
-        //Condition to loop over:
+        //Possible condition to loop over (different have been tried because a
+        //deadlock of InputStream.read occured after killing the postgres
+        //process with Process.destroy; Scanner is the best because it avoids
+        //catching IOException):
         //- testing for BufferedReader.ready causes thread to terminate
         //before the end of the output is reached
         //- testing for process.isAlive doesn't make sense because it discards
         //output after the process terminated
+        //- using code from com.Ostermiller.util.ExecHelper causes output to be
+        //not available in short runs like `[program] --version`
+        //- Scanner.hasNext()
         while(scanner.hasNext()) {
             String line = scanner.nextLine();
             LOGGER.trace(String.format("[output reader] %s",
