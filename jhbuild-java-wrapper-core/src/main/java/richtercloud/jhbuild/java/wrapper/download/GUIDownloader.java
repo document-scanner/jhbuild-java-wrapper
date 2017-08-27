@@ -74,7 +74,7 @@ public class GUIDownloader extends AutoDownloader {
             protected Boolean doInBackground() throws FileNotFoundException,
                     IOException,
                     ExtractionException {
-                boolean retValue = GUIDownloader.super.downloadFile(downloadCombi,
+                boolean retValue = GUIDownloader.super.download(downloadCombi,
                         skipMD5SumCheck,
                         downloadFailureCallback,
                         mD5SumCheckUnequalsCallback);
