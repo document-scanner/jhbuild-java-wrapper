@@ -44,7 +44,7 @@
                             <goal>verify</goal>
                         </goals>
                         <configuration>
-                            <forkMode>always</forkMode>
+                            <forkCount>1C</forkCount>
                             <argLine>-Xmx12g</argLine>
                                 <!-- Xmx8g is too small for
                                         LargeBinaryStorageIT -->
