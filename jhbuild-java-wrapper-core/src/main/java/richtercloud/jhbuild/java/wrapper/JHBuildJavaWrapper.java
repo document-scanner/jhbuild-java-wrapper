@@ -25,7 +25,9 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -96,6 +98,12 @@ public class JHBuildJavaWrapper {
             ExtractionMode.EXTRACTION_MODE_NONE,
             null,
             "72908af3e98c1ec631113da9d38a6875");
+    public final static File CONFIG_DIR = new File(SystemUtils.getUserHome(),
+            ".jhbuild-java-wrapper");
+    public final static File INSTALLATION_PREFIX_DIR_DEFAULT = new File(CONFIG_DIR,
+            "installation-prefix");
+    public final static File DOWNLOAD_DIR_DEFAULT = new File(CONFIG_DIR,
+            "downloads");
     /**
      * The {@code git} binary to use.
      */
@@ -156,6 +164,24 @@ public class JHBuildJavaWrapper {
     private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
     private final Downloader downloader;
 
+    public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
+            ActionOnMissingBinary actionOnMissingJHBuild,
+            Downloader downloader,
+            boolean skipMD5SumCheck,
+            boolean silenceStdout,
+            boolean silenceStderr,
+            IssueHandler issueHandler) throws IOException {
+        this(INSTALLATION_PREFIX_DIR_DEFAULT,
+                DOWNLOAD_DIR_DEFAULT,
+                actionOnMissingGit,
+                actionOnMissingJHBuild,
+                downloader,
+                skipMD5SumCheck,
+                silenceStdout,
+                silenceStderr,
+                issueHandler);
+    }
+
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
             ActionOnMissingBinary actionOnMissingGit,
@@ -164,7 +190,7 @@ public class JHBuildJavaWrapper {
             boolean skipMD5SumCheck,
             boolean silenceStdout,
             boolean silenceStderr,
-            IssueHandler issueHandler) {
+            IssueHandler issueHandler) throws IOException {
         this(installationPrefixDir,
                 downloadDir,
                 GIT_DEFAULT,
@@ -192,13 +218,19 @@ public class JHBuildJavaWrapper {
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
-            IssueHandler issueHandler) {
+            IssueHandler issueHandler) throws IOException {
         if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
             throw new IllegalArgumentException("installationPrefixDir points "
                     + "to an existing location and is not a directory");
         }
         this.installationPrefixDir = installationPrefixDir;
+        if(!installationPrefixDir.exists()) {
+            FileUtils.forceMkdir(installationPrefixDir);
+        }
         this.downloadDir = downloadDir;
+        if(!downloadDir.exists()) {
+            FileUtils.forceMkdir(downloadDir);
+        }
         this.git = git;
         this.jhbuild = jhbuild;
         this.sh = sh;
