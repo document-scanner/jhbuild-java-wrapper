@@ -1,0 +1,3 @@
+[submodule "checkstyle-config"]
+	path = checkstyle-config
+	url = https://gitlab.com/krichter/checkstyle-config-gplv3.git

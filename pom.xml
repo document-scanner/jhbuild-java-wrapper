@@ -4,7 +4,7 @@
     <parent>
         <groupId>richtercloud</groupId>
         <artifactId>maven-parent</artifactId>
-        <version>1</version>
+        <version>2</version>
         <relativePath></relativePath>
     </parent>
     <groupId>richtercloud</groupId>
@@ -33,28 +33,4 @@
             <version>1.2.2</version>
         </dependency>
     </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>2.17</version>
-                <executions>
-                    <execution>
-                        <id>check_style</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <phase>validate</phase>
-                        <configuration>
-                            <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-                <configuration>
-                    <configLocation>check_style.xml</configLocation>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>
