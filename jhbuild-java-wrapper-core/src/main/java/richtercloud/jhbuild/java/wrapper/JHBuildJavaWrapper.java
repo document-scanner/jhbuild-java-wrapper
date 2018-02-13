@@ -36,7 +36,6 @@ import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallbackReation;
 import richtercloud.jhbuild.java.wrapper.download.DownloadTools;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
-import richtercloud.message.handler.IssueHandler;
 
 /**
  * A wrapper around GNOME's JHBuild build and dependency manager which allows
@@ -161,7 +160,6 @@ public class JHBuildJavaWrapper {
      * redirected to {@code stderr} of the JVM.
      */
     private final boolean silenceStderr;
-    private final IssueHandler issueHandler;
     private boolean canceled = false;
     /**
      * A pointer to the currently active process which allows to destroy it in
@@ -178,8 +176,7 @@ public class JHBuildJavaWrapper {
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
-            boolean silenceStderr,
-            IssueHandler issueHandler) throws IOException {
+            boolean silenceStderr) throws IOException {
         this(INSTALLATION_PREFIX_DIR_DEFAULT,
                 DOWNLOAD_DIR_DEFAULT,
                 actionOnMissingGit,
@@ -188,8 +185,7 @@ public class JHBuildJavaWrapper {
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
-                silenceStderr,
-                issueHandler);
+                silenceStderr);
     }
 
     public JHBuildJavaWrapper(File installationPrefixDir,
@@ -200,8 +196,7 @@ public class JHBuildJavaWrapper {
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
-            boolean silenceStderr,
-            IssueHandler issueHandler) throws IOException {
+            boolean silenceStderr) throws IOException {
         this(installationPrefixDir,
                 downloadDir,
                 GIT_DEFAULT,
@@ -215,8 +210,7 @@ public class JHBuildJavaWrapper {
                 silenceStderr,
                 actionOnMissingGit,
                 actionOnMissingJHBuild,
-                actionOnMissingPython,
-                issueHandler);
+                actionOnMissingPython);
     }
 
     public JHBuildJavaWrapper(File installationPrefixDir,
@@ -232,8 +226,7 @@ public class JHBuildJavaWrapper {
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
-            ActionOnMissingBinary actionOnMissingPython,
-            IssueHandler issueHandler) throws IOException {
+            ActionOnMissingBinary actionOnMissingPython) throws IOException {
         if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
             throw new IllegalArgumentException("installationPrefixDir points "
                     + "to an existing location and is not a directory");
@@ -261,7 +254,6 @@ public class JHBuildJavaWrapper {
         this.skipMD5SumCheck = skipMD5SumCheck;
         this.silenceStdout = silenceStdout;
         this.silenceStderr = silenceStderr;
-        this.issueHandler = issueHandler;
     }
 
     private Process createProcess(String path,
