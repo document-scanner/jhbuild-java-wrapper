@@ -77,6 +77,7 @@ public class JHBuildJavaWrapper {
     private final static String SH_DEFAULT = "bash";
     private final static String MAKE_DEFAULT = "make";
     private final static String PYTHON_DEFAULT = "python";
+    private final static String CC_DEFAULT = "gcc";
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
             "git-2.13.3.tar.gz",
             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
@@ -128,6 +129,11 @@ public class JHBuildJavaWrapper {
      * 'python' in the PATH} during {@code make install} of JHBuild.
      */
     private final String python;
+    /**
+     * A C compiler is necessary to build Python in case
+     * {@link #actionOnMissingPython} is {@link ActionOnMissingBinary#DOWNLOAD}.
+     */
+    private final String cc;
     private final ActionOnMissingBinary actionOnMissingGit;
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
@@ -204,6 +210,7 @@ public class JHBuildJavaWrapper {
                 SH_DEFAULT,
                 MAKE_DEFAULT,
                 PYTHON_DEFAULT,
+                CC_DEFAULT,
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
@@ -220,6 +227,7 @@ public class JHBuildJavaWrapper {
             String sh,
             String make,
             String python,
+            String cc,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -244,6 +252,7 @@ public class JHBuildJavaWrapper {
         this.sh = sh;
         this.make = make;
         this.python = python;
+        this.cc = cc;
         if(downloader == null) {
             throw new IllegalArgumentException("downloader mustn't be null");
         }
@@ -338,6 +347,17 @@ public class JHBuildJavaWrapper {
                 silenceStdout));
         LOGGER.trace(String.format("silenceStderr: %s",
                 silenceStderr));
+        try {
+            BinaryTools.validateBinary(cc,
+                    "cc",
+                    installationPrefixPath);
+        }catch(BinaryValidationException gccBinaryValidationException) {
+            //there's no sense in providing options/MissingBiaryAction since
+            //building GCC from source without a working C compiler is between
+            //troublesome and impossible
+            throw new IllegalStateException(String.format("cc (C compiler) binary '%s' doesn't exist and can't be found in PATH",
+                            cc));
+        }
         try {
             BinaryTools.validateBinary(git,
                     "git",
