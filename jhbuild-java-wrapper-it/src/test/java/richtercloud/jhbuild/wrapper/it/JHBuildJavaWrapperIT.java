@@ -21,6 +21,8 @@ import java.nio.file.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Test;
 import static org.mockito.Mockito.mock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.ActionOnMissingBinary;
 import richtercloud.jhbuild.java.wrapper.ArchitectureNotRecognizedException;
 import richtercloud.jhbuild.java.wrapper.BuildFailureException;
@@ -38,6 +40,7 @@ import richtercloud.message.handler.IssueHandler;
  * @author richter
  */
 public class JHBuildJavaWrapperIT {
+    private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapperIT.class);
 
     @Test
     public void testExampleBuild() throws IOException,
@@ -49,7 +52,11 @@ public class JHBuildJavaWrapperIT {
             BuildFailureException,
             ModuleBuildFailureException {
         File installationPrefixDir = Files.createTempDirectory(JHBuildJavaWrapperIT.class.getSimpleName()).toFile();
+        LOGGER.debug(String.format("installation prefix directory: %s",
+                installationPrefixDir.getAbsolutePath()));
         File downloadDir = new File(SystemUtils.getUserHome(), "sources");
+        LOGGER.debug(String.format("download directory: %s",
+                downloadDir.getAbsolutePath()));
         IssueHandler issueHandler = mock(IssueHandler.class);
         Downloader downloader = new AutoDownloader();
         JHBuildJavaWrapper jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
