@@ -75,7 +75,7 @@ public class JHBuildJavaWrapper {
     private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapper.class);
     private final static String GIT_DEFAULT = "git";
     private final static String JHBUILD_DEFAULT = "jhbuild";
-    private final static String SH_DEFAULT = "sh";
+    private final static String SH_DEFAULT = "bash";
     private final static String MAKE_DEFAULT = "make";
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
             "git-2.13.3.tar.gz",
