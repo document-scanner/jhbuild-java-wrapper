@@ -7,7 +7,8 @@
   <repository type="tarball" name="postgresql"
       href="https://ftp.postgresql.org/pub/source/"/>
 
-  <autotools id="postgresql-9.6.3">
+  <autotools id="postgresql-9.6.3" autogenargs="--without-readline">
+      <!-- doesn't find readline installed as dependency correctly -->
     <branch repo="postgresql" module="v9.6.3/postgresql-9.6.3.tar.bz2" version="9.6.3"/>
     <dependencies>
     </dependencies>
