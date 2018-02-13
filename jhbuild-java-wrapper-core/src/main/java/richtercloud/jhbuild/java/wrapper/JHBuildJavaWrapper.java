@@ -77,6 +77,7 @@ public class JHBuildJavaWrapper {
     private final static String JHBUILD_DEFAULT = "jhbuild";
     private final static String SH_DEFAULT = "bash";
     private final static String MAKE_DEFAULT = "make";
+    private final static String PYTHON_DEFAULT = "python";
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
             "git-2.13.3.tar.gz",
             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
@@ -122,9 +123,16 @@ public class JHBuildJavaWrapper {
     private String jhbuild;
     private final String sh;
     private final String make;
+    /**
+     * Python is necessary in order to avoid
+     * {@code ./scripts/debian-python2-postinstall-hook.sh: Unable to find
+     * 'python' in the PATH} during {@code make install} of JHBuild.
+     */
+    private final String python;
     private final ActionOnMissingBinary actionOnMissingGit;
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
+    private final ActionOnMissingBinary actionOnMissingPython;
     /**
      * Mapping between supported OS and the {@link DownloadCombi} for
      * {@code git}.
@@ -166,6 +174,7 @@ public class JHBuildJavaWrapper {
 
     public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
+            ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -175,6 +184,7 @@ public class JHBuildJavaWrapper {
                 DOWNLOAD_DIR_DEFAULT,
                 actionOnMissingGit,
                 actionOnMissingJHBuild,
+                actionOnMissingPython,
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
@@ -186,6 +196,7 @@ public class JHBuildJavaWrapper {
             File downloadDir,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
+            ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -197,12 +208,14 @@ public class JHBuildJavaWrapper {
                 JHBUILD_DEFAULT,
                 SH_DEFAULT,
                 MAKE_DEFAULT,
+                PYTHON_DEFAULT,
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
                 silenceStderr,
                 actionOnMissingGit,
                 actionOnMissingJHBuild,
+                actionOnMissingPython,
                 issueHandler);
     }
 
@@ -212,12 +225,14 @@ public class JHBuildJavaWrapper {
             String jhbuild,
             String sh,
             String make,
+            String python,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
+            ActionOnMissingBinary actionOnMissingPython,
             IssueHandler issueHandler) throws IOException {
         if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
             throw new IllegalArgumentException("installationPrefixDir points "
@@ -235,12 +250,14 @@ public class JHBuildJavaWrapper {
         this.jhbuild = jhbuild;
         this.sh = sh;
         this.make = make;
+        this.python = python;
         if(downloader == null) {
             throw new IllegalArgumentException("downloader mustn't be null");
         }
         this.downloader = downloader;
         this.actionOnMissingGit = actionOnMissingGit;
         this.actionOnMissingJHBuild = actionOnMissingJHBuild;
+        this.actionOnMissingPython = actionOnMissingPython;
         this.skipMD5SumCheck = skipMD5SumCheck;
         this.silenceStdout = silenceStdout;
         this.silenceStderr = silenceStderr;
@@ -421,6 +438,131 @@ public class JHBuildJavaWrapper {
                     installationPrefixPath);
         } catch (BinaryValidationException ex) {
             assert false: "git exisistence check or installation failed";
+        }
+        try {
+            BinaryTools.validateBinary(python,
+                    "python",
+                    installationPrefixPath);
+        }catch(BinaryValidationException ex1) {
+            switch(actionOnMissingPython) {
+                case FAIL:
+                    throw new IllegalStateException(String.format("python binary '%s' doesn't exist and can't be found in PATH",
+                            python));
+                case DOWNLOAD:
+                    File pythonCloneDir = new File(downloadDir, "python");
+                    boolean needClone = true;
+                    if(pythonCloneDir.exists()
+                            && pythonCloneDir.list().length > 0) {
+                        //check whether the existing non-empty directory is a
+                        //valid source root
+                        synchronized(this) {
+                            if(canceled) {
+                                return;
+                            }
+                        }
+                        Process pythonSourceRootCheckProcess = createProcess(pythonCloneDir,
+                                installationPrefixPath,
+                                git,
+                                "status");
+                        LOGGER.debug("waiting for python source root check");
+                        pythonSourceRootCheckProcess.waitFor();
+                        if(pythonSourceRootCheckProcess.exitValue() != 0) {
+                            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(pythonSourceRootCheckProcess).getKey();
+                            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(pythonSourceRootCheckProcess).getValue();
+                            stdoutReaderThread.join();
+                            stderrReaderThread.join();
+                            throw new IllegalStateException(String.format("The "
+                                    + "python clone directory '%s' already "
+                                    + "exist, is not empty and is not a valid "
+                                    + "git source root. This might be the "
+                                    + "result of a failing previous checkout. "
+                                    + "You need to check and eventually delete "
+                                    + "the existing directory or specify "
+                                    + "another download directory for JHBuild "
+                                    + "Java wrapper (git status process had "
+                                    + "stdout '%s' and stderr '%s').",
+                                    pythonCloneDir.getAbsolutePath(),
+                                    stdoutReaderThread.getOutputBuilder().toString(),
+                                    stderrReaderThread.getOutputBuilder().toString()));
+                        }
+                        needClone = false;
+                    }
+                    if(needClone) {
+                        synchronized(this) {
+                            if(canceled) {
+                                return;
+                            }
+                        }
+                        Process pythonCloneProcess = createProcess(installationPrefixPath,
+                                git,
+                                "clone",
+                                "https://github.com/python/cpython",
+                                pythonCloneDir.getAbsolutePath());
+                            //directory doesn't matter because target path is
+                            //absolute
+                        LOGGER.debug("waiting for python download");
+                        pythonCloneProcess.waitFor();
+                        if(pythonCloneProcess.exitValue() != 0) {
+                            handleBuilderFailure("python",
+                                    BuildStep.CLONE,
+                                    pythonCloneProcess);
+                        }
+                        LOGGER.debug("jhbuild download finished");
+                    }
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process pythonConfigureProcess = createProcess(pythonCloneDir,
+                            installationPrefixPath,
+                            sh, "configure",
+                            String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
+                        //no autogen.sh available
+                    LOGGER.debug("waiting for configure python process");
+                    pythonConfigureProcess.waitFor();
+                    if(pythonConfigureProcess.exitValue() != 0) {
+                        handleBuilderFailure("python",
+                                BuildStep.CONFIGURE,
+                                pythonConfigureProcess);
+                    }
+                    LOGGER.debug("python build configure process finished");
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process pythonMakeProcess = createProcess(pythonCloneDir,
+                            installationPrefixPath,
+                            make);
+                    LOGGER.debug("waiting for python build process");
+                    pythonMakeProcess.waitFor();
+                    if(pythonMakeProcess.exitValue() != 0) {
+                        handleBuilderFailure("python",
+                                BuildStep.MAKE,
+                                pythonMakeProcess);
+                    }
+                    LOGGER.debug("jhbuild build process finished");
+                    synchronized(this) {
+                        if(canceled) {
+                            return;
+                        }
+                    }
+                    Process jhbuildMakeInstallProcess = createProcess(pythonCloneDir,
+                            installationPrefixPath,
+                            make, "install");
+                    LOGGER.debug("waiting for jhbuild installation process");
+                    jhbuildMakeInstallProcess.waitFor();
+                    if(jhbuildMakeInstallProcess.exitValue() != 0) {
+                        handleBuilderFailure("jhbuild", BuildStep.MAKE_INSTALL, jhbuildMakeInstallProcess);
+                    }
+                    LOGGER.debug("jhbuild installation process finished");
+                    jhbuild = "jhbuild";
+                        //is found in modified path of every process built with
+                        //buildProcess
+                    LOGGER.debug(String.format("using jhbuild command '%s'",
+                            jhbuild));
+            }
         }
         try {
             BinaryTools.validateBinary(jhbuild,
