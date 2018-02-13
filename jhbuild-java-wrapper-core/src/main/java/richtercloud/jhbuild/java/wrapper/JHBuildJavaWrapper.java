@@ -375,7 +375,9 @@ public class JHBuildJavaWrapper {
                             String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
                     gitConfigureProcess.waitFor();
                     if(gitConfigureProcess.exitValue() != 0) {
-                        handleBuilderFailure("git", BuildStep.CONFIGURE, gitConfigureProcess);
+                        handleBuilderFailure("git",
+                                BuildStep.CONFIGURE,
+                                gitConfigureProcess);
                     }
                     synchronized(this) {
                         if(canceled) {
@@ -387,7 +389,9 @@ public class JHBuildJavaWrapper {
                             make);
                     gitMakeProcess.waitFor();
                     if(gitMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure("git", BuildStep.MAKE, gitMakeProcess);
+                        handleBuilderFailure("git",
+                                BuildStep.MAKE,
+                                gitMakeProcess);
                     }
                     synchronized(this) {
                         if(canceled) {
@@ -400,7 +404,9 @@ public class JHBuildJavaWrapper {
                             "install");
                     gitMakeInstallProcess.waitFor();
                     if(gitMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("git", BuildStep.MAKE_INSTALL, gitMakeInstallProcess);
+                        handleBuilderFailure("git",
+                                BuildStep.MAKE_INSTALL,
+                                gitMakeInstallProcess);
                     }
                     git = "git";
                         //is found in modified path of every process built with
@@ -480,7 +486,9 @@ public class JHBuildJavaWrapper {
                         LOGGER.debug("waiting for jhbuild download");
                         jhbuildCloneProcess.waitFor();
                         if(jhbuildCloneProcess.exitValue() != 0) {
-                            handleBuilderFailure("jhbuild", BuildStep.CLONE, jhbuildCloneProcess);
+                            handleBuilderFailure("jhbuild",
+                                    BuildStep.CLONE,
+                                    jhbuildCloneProcess);
                         }
                         LOGGER.debug("jhbuild download finished");
                     }
@@ -497,7 +505,9 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild build bootstrap process");
                     jhbuildAutogenProcess.waitFor();
                     if(jhbuildAutogenProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.BOOTSTRAP, jhbuildAutogenProcess);
+                        handleBuilderFailure("jhbuild",
+                                BuildStep.BOOTSTRAP,
+                                jhbuildAutogenProcess);
                     }
                     LOGGER.debug("jhbuild build bootstrap process finished");
                     synchronized(this) {
@@ -511,7 +521,9 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild build process");
                     jhbuildMakeProcess.waitFor();
                     if(jhbuildMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.MAKE, jhbuildMakeProcess);
+                        handleBuilderFailure("jhbuild",
+                                BuildStep.MAKE,
+                                jhbuildMakeProcess);
                     }
                     LOGGER.debug("jhbuild build process finished");
                     synchronized(this) {
@@ -525,7 +537,9 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild installation process");
                     jhbuildMakeInstallProcess.waitFor();
                     if(jhbuildMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.MAKE_INSTALL, jhbuildMakeInstallProcess);
+                        handleBuilderFailure("jhbuild",
+                                BuildStep.MAKE_INSTALL,
+                                jhbuildMakeInstallProcess);
                     }
                     LOGGER.debug("jhbuild installation process finished");
                     jhbuild = "jhbuild";
