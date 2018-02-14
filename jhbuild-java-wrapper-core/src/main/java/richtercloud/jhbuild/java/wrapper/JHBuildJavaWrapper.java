@@ -133,7 +133,7 @@ public class JHBuildJavaWrapper {
      * {@code ./scripts/debian-python2-postinstall-hook.sh: Unable to find
      * 'python' in the PATH} during {@code make install} of JHBuild.
      */
-    private final String python;
+    private String python;
     /**
      * A C compiler is necessary to build Python in case
      * {@link #actionOnMissingPython} is {@link ActionOnMissingBinary#DOWNLOAD}.
@@ -536,7 +536,7 @@ public class JHBuildJavaWrapper {
                                     BuildStep.CLONE,
                                     pythonCloneProcess);
                         }
-                        LOGGER.debug("jhbuild download finished");
+                        LOGGER.debug("python download finished");
                     }
                     synchronized(this) {
                         if(canceled) {
@@ -548,7 +548,7 @@ public class JHBuildJavaWrapper {
                             sh, "configure",
                             String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
                         //no autogen.sh available
-                    LOGGER.debug("waiting for configure python process");
+                    LOGGER.debug("waiting for python configure process");
                     pythonConfigureProcess.waitFor();
                     if(pythonConfigureProcess.exitValue() != 0) {
                         handleBuilderFailure("python",
@@ -571,26 +571,26 @@ public class JHBuildJavaWrapper {
                                 BuildStep.MAKE,
                                 pythonMakeProcess);
                     }
-                    LOGGER.debug("jhbuild build process finished");
+                    LOGGER.debug("python build process finished");
                     synchronized(this) {
                         if(canceled) {
                             return;
                         }
                     }
-                    Process jhbuildMakeInstallProcess = createProcess(pythonCloneDir,
+                    Process pythonMakeInstallProcess = createProcess(pythonCloneDir,
                             installationPrefixPath,
                             make, "install");
-                    LOGGER.debug("waiting for jhbuild installation process");
-                    jhbuildMakeInstallProcess.waitFor();
-                    if(jhbuildMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.MAKE_INSTALL, jhbuildMakeInstallProcess);
+                    LOGGER.debug("waiting for python installation process");
+                    pythonMakeInstallProcess.waitFor();
+                    if(pythonMakeInstallProcess.exitValue() != 0) {
+                        handleBuilderFailure("jhbuild", BuildStep.MAKE_INSTALL, pythonMakeInstallProcess);
                     }
-                    LOGGER.debug("jhbuild installation process finished");
-                    jhbuild = "jhbuild";
+                    LOGGER.debug("python installation process finished");
+                    python = "python";
                         //is found in modified path of every process built with
                         //buildProcess
-                    LOGGER.debug(String.format("using jhbuild command '%s'",
-                            jhbuild));
+                    LOGGER.debug(String.format("using python command '%s'",
+                            python));
             }
         }
         try {
