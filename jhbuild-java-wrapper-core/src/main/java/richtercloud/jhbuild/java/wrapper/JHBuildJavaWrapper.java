@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -140,6 +142,7 @@ public class JHBuildJavaWrapper {
      */
     private final String cc;
     private final ActionOnMissingBinary actionOnMissingGit;
+    private final ActionOnMissingBinary actionOnMissingZlib;
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
     private final ActionOnMissingBinary actionOnMissingPython;
@@ -187,6 +190,7 @@ public class JHBuildJavaWrapper {
     private final int parallelism;
 
     public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
+            ActionOnMissingBinary actionOnMissingZlib,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
@@ -196,6 +200,7 @@ public class JHBuildJavaWrapper {
         this(INSTALLATION_PREFIX_DIR_DEFAULT,
                 DOWNLOAD_DIR_DEFAULT,
                 actionOnMissingGit,
+                actionOnMissingZlib,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
                 downloader,
@@ -207,6 +212,7 @@ public class JHBuildJavaWrapper {
     public JHBuildJavaWrapper(File installationPrefixDir,
             File downloadDir,
             ActionOnMissingBinary actionOnMissingGit,
+            ActionOnMissingBinary actionOnMissingZlib,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
@@ -226,6 +232,7 @@ public class JHBuildJavaWrapper {
                 silenceStdout,
                 silenceStderr,
                 actionOnMissingGit,
+                actionOnMissingZlib,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
                 calculateParallelism());
@@ -244,6 +251,7 @@ public class JHBuildJavaWrapper {
             boolean silenceStdout,
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
+            ActionOnMissingBinary actionOnMissingZlib,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             int parallelism) throws IOException {
@@ -270,6 +278,7 @@ public class JHBuildJavaWrapper {
         }
         this.downloader = downloader;
         this.actionOnMissingGit = actionOnMissingGit;
+        this.actionOnMissingZlib = actionOnMissingZlib;
         this.actionOnMissingJHBuild = actionOnMissingJHBuild;
         this.actionOnMissingPython = actionOnMissingPython;
         this.skipMD5SumCheck = skipMD5SumCheck;
@@ -387,86 +396,53 @@ public class JHBuildJavaWrapper {
                 case DOWNLOAD:
                     SupportedOS currentOS = DownloadTools.getCurrentOS();
                     DownloadCombi gitDownloadCombi = oSDownloadCombiGitMap.get(currentOS);
-                    boolean notCanceled = downloader.downloadFile(gitDownloadCombi,
-                            skipMD5SumCheck,
-                        ex1 -> {
-                            return DownloadFailureCallbackReation.RETRY;
-                        },
-                        (String md5SumExpected, String md5SumActual) -> {
-                            return MD5SumCheckUnequalsCallbackReaction.RETRY;
-                        });
-                    if(!notCanceled) {
+                    git = installPrerequisiteAutotools(installationPrefixPath,
+                            "git",
+                            "git",
+                            gitDownloadCombi);
+                    if(git == null) {
+                        //interactive download has been canceled
                         return;
                     }
-                    //need make for building and it's overly hard to bootstrap
-                    //without it, so force installation out of JHBuild wrapper
                     try {
-                        BinaryTools.validateBinary(make,
-                                "make",
+                        BinaryTools.validateBinary(git,
+                                "git",
                                 installationPrefixPath);
-                    }catch(BinaryValidationException ex1) {
-                        throw new MissingSystemBinary("make",
-                                ex1);
+                    } catch (BinaryValidationException ex1) {
+                        assert false: "git exisistence check or installation failed";
                     }
-                    //build
-                    File extractionLocationDir = new File(gitDownloadCombi.getExtractionLocation());
-                    assert extractionLocationDir.exists();
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process gitConfigureProcess = createProcess(extractionLocationDir,
-                            sh, "configure",
-                            String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
-                    gitConfigureProcess.waitFor();
-                    if(gitConfigureProcess.exitValue() != 0) {
-                        handleBuilderFailure("git",
-                                BuildStep.CONFIGURE,
-                                gitConfigureProcess);
-                    }
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process gitMakeProcess = createProcess(extractionLocationDir,
-                            installationPrefixPath,
-                            make, String.format("-j%d", parallelism));
-                    gitMakeProcess.waitFor();
-                    if(gitMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure("git",
-                                BuildStep.MAKE,
-                                gitMakeProcess);
-                    }
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process gitMakeInstallProcess = createProcess(extractionLocationDir,
-                            installationPrefixPath,
-                            make,
-                            "install");
-                    gitMakeInstallProcess.waitFor();
-                    if(gitMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("git",
-                                BuildStep.MAKE_INSTALL,
-                                gitMakeInstallProcess);
-                    }
-                    git = "git";
-                        //is found in modified path of every process built with
-                        //buildProcess
-                    LOGGER.debug(String.format("using git command '%s'",
-                            git));
             }
         }
-        try {
-            BinaryTools.validateBinary("git",
-                    "git",
-                    installationPrefixPath);
-        } catch (BinaryValidationException ex) {
-            assert false: "git exisistence check or installation failed";
+        //zlib is a prerequisite of python build
+        Optional<Path> hit = Files.walk(installationPrefixDir.toPath())
+                .filter(file -> file.getFileName().toFile().getName().equals("zlib.pc"))
+                .findAny();
+            //recursive search, from
+            //https://stackoverflow.com/questions/10780747/recursively-search-for-a-directory-in-java
+        if(hit.isPresent()) {
+            LOGGER.debug("using existing version of zlib in installation prefix");
+        }else {
+            switch(actionOnMissingZlib) {
+                case FAIL:
+                    throw new IllegalStateException("library zlib doesn't exist in installation prefix");
+                case DOWNLOAD:
+                    DownloadCombi zlibDownloadCombi = new DownloadCombi("https://www.zlib.net/zlib-1.2.11.tar.gz", //downloadURL
+                            "zlib-1.2.11.tar.gz", //downloadTarget
+                            ExtractionMode.EXTRACTION_MODE_TAR_GZ,
+                            "zlib-1.2.11", //extractionLocation
+                            "1c9f62f0778697a09d36121ead88e08e" //md5sum
+                    );
+                    String zlib = installPrerequisiteAutotools(installationPrefixPath,
+                            "", //binary (library doesn't provide binary, see
+                                //installPrerequisiteAutotools for details)
+                            "zlib",
+                            zlibDownloadCombi);
+                    if(zlib == null) {
+                        //interactive download has been canceled
+                        return;
+                    }
+                    assert "".equals(zlib);
+            }
         }
         try {
             BinaryTools.validateBinary(python,
@@ -889,5 +865,104 @@ public class JHBuildJavaWrapper {
                     stderrReaderThread.getOutputBuilder().toString()));
         }
         LOGGER.debug("jhbuild build process finished");
+    }
+
+    /**
+     * Installs an autotools-based prerequisiste.
+     *
+     * @param installationPrefixPath the {@code PATH} of the installation prefix
+     * to use
+     * @param binary the binary which is supposed to be installed and returned
+     * after successful, non-canceled installation (see return value
+     * description)
+     * @param binaryDescription a description of the binary to be installed used
+     * in logging messages (can be the name of the binary or a short description
+     * like "C compiler")
+     * @return the path of the installed binary, the empty string in case no
+     * binary has been installed, but the installation hasn't been canceled or
+     * {@code null} if the installation or any part of it has been aborted
+     * @throws IOException
+     * @throws OSNotRecognizedException
+     * @throws ArchitectureNotRecognizedException
+     * @throws ExtractionException
+     * @throws MissingSystemBinary
+     * @throws InterruptedException
+     * @throws BuildFailureException
+     */
+    private String installPrerequisiteAutotools(String installationPrefixPath,
+            String binary,
+            String binaryDescription,
+            DownloadCombi downloadCombi) throws IOException, OSNotRecognizedException, ArchitectureNotRecognizedException, ExtractionException, MissingSystemBinary, InterruptedException, BuildFailureException {
+        boolean notCanceled = downloader.downloadFile(downloadCombi,
+                skipMD5SumCheck,
+            ex1 -> {
+                return DownloadFailureCallbackReation.RETRY;
+            },
+            (String md5SumExpected, String md5SumActual) -> {
+                return MD5SumCheckUnequalsCallbackReaction.RETRY;
+            });
+        if(!notCanceled) {
+            return null;
+        }
+        //need make for building and it's overly hard to bootstrap
+        //without it, so force installation out of JHBuild wrapper
+        try {
+            BinaryTools.validateBinary(make,
+                    "make",
+                    installationPrefixPath);
+        }catch(BinaryValidationException ex1) {
+            throw new MissingSystemBinary("make",
+                    ex1);
+        }
+        //build
+        File extractionLocationDir = new File(downloadCombi.getExtractionLocation());
+        assert extractionLocationDir.exists();
+        synchronized(this) {
+            if(canceled) {
+                return null;
+            }
+        }
+        Process configureProcess = createProcess(extractionLocationDir,
+                installationPrefixPath,
+                sh, "configure",
+                String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
+        configureProcess.waitFor();
+        if(configureProcess.exitValue() != 0) {
+            handleBuilderFailure(binaryDescription,
+                    BuildStep.CONFIGURE,
+                    configureProcess);
+        }
+        synchronized(this) {
+            if(canceled) {
+                return null;
+            }
+        }
+        Process makeProcess = createProcess(extractionLocationDir,
+                installationPrefixPath,
+                make, String.format("-j%d", parallelism));
+        makeProcess.waitFor();
+        if(makeProcess.exitValue() != 0) {
+            handleBuilderFailure(binaryDescription,
+                    BuildStep.MAKE,
+                    makeProcess);
+        }
+        synchronized(this) {
+            if(canceled) {
+                return null;
+            }
+        }
+        Process makeInstallProcess = createProcess(extractionLocationDir,
+                installationPrefixPath,
+                make,
+                "install");
+        makeInstallProcess.waitFor();
+        if(makeInstallProcess.exitValue() != 0) {
+            handleBuilderFailure(binaryDescription,
+                    BuildStep.MAKE_INSTALL,
+                    makeInstallProcess);
+        }
+        return binary;
+            //is found in modified path of every process built with
+            //buildProcess
     }
 }
