@@ -105,6 +105,11 @@ public class JHBuildJavaWrapper {
             "installation-prefix");
     public final static File DOWNLOAD_DIR_DEFAULT = new File(CONFIG_DIR,
             "downloads");
+
+    private static int calculateParallelism() {
+        return Runtime.getRuntime().availableProcessors();
+    }
+
     /**
      * The {@code git} binary to use.
      */
@@ -175,6 +180,11 @@ public class JHBuildJavaWrapper {
     private Process activeProcess = null;
     private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
     private final Downloader downloader;
+    /**
+     * The value passed to the {@code -j} option of all invokations of
+     * {@code make}, except {@code make install}.
+     */
+    private final int parallelism;
 
     public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
@@ -217,7 +227,8 @@ public class JHBuildJavaWrapper {
                 silenceStderr,
                 actionOnMissingGit,
                 actionOnMissingJHBuild,
-                actionOnMissingPython);
+                actionOnMissingPython,
+                calculateParallelism());
     }
 
     public JHBuildJavaWrapper(File installationPrefixDir,
@@ -234,7 +245,8 @@ public class JHBuildJavaWrapper {
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingJHBuild,
-            ActionOnMissingBinary actionOnMissingPython) throws IOException {
+            ActionOnMissingBinary actionOnMissingPython,
+            int parallelism) throws IOException {
         if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
             throw new IllegalArgumentException("installationPrefixDir points "
                     + "to an existing location and is not a directory");
@@ -263,6 +275,11 @@ public class JHBuildJavaWrapper {
         this.skipMD5SumCheck = skipMD5SumCheck;
         this.silenceStdout = silenceStdout;
         this.silenceStderr = silenceStderr;
+        if(parallelism < 1) {
+            throw new IllegalArgumentException(String.format("parallelism value of less than 1 doesn't make sense (was %d)",
+                    parallelism));
+        }
+        this.parallelism = parallelism;
     }
 
     private Process createProcess(String path,
@@ -415,7 +432,7 @@ public class JHBuildJavaWrapper {
                     }
                     Process gitMakeProcess = createProcess(extractionLocationDir,
                             installationPrefixPath,
-                            make);
+                            make, String.format("-j%d", parallelism));
                     gitMakeProcess.waitFor();
                     if(gitMakeProcess.exitValue() != 0) {
                         handleBuilderFailure("git",
@@ -546,7 +563,7 @@ public class JHBuildJavaWrapper {
                     }
                     Process pythonMakeProcess = createProcess(pythonCloneDir,
                             installationPrefixPath,
-                            make);
+                            make, String.format("-j%d", parallelism));
                     LOGGER.debug("waiting for python build process");
                     pythonMakeProcess.waitFor();
                     if(pythonMakeProcess.exitValue() != 0) {
@@ -671,7 +688,7 @@ public class JHBuildJavaWrapper {
                     }
                     Process jhbuildMakeProcess = createProcess(jhbuildCloneDir,
                             installationPrefixPath,
-                            make);
+                            make, String.format("-j%d", parallelism));
                     LOGGER.debug("waiting for jhbuild build process");
                     jhbuildMakeProcess.waitFor();
                     if(jhbuildMakeProcess.exitValue() != 0) {
