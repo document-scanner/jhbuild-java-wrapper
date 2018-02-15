@@ -143,6 +143,7 @@ public class JHBuildJavaWrapper {
     private final String cc;
     private final ActionOnMissingBinary actionOnMissingGit;
     private final ActionOnMissingBinary actionOnMissingZlib;
+    private final ActionOnMissingBinary actionOnMissingLibffi;
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
     private final ActionOnMissingBinary actionOnMissingPython;
@@ -191,6 +192,7 @@ public class JHBuildJavaWrapper {
 
     public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingZlib,
+            ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
@@ -201,6 +203,7 @@ public class JHBuildJavaWrapper {
                 DOWNLOAD_DIR_DEFAULT,
                 actionOnMissingGit,
                 actionOnMissingZlib,
+                actionOnMissingLibffi,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
                 downloader,
@@ -213,6 +216,7 @@ public class JHBuildJavaWrapper {
             File downloadDir,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingZlib,
+            ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             Downloader downloader,
@@ -233,6 +237,7 @@ public class JHBuildJavaWrapper {
                 silenceStderr,
                 actionOnMissingGit,
                 actionOnMissingZlib,
+                actionOnMissingLibffi,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
                 calculateParallelism());
@@ -252,6 +257,7 @@ public class JHBuildJavaWrapper {
             boolean silenceStderr,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingZlib,
+            ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
             int parallelism) throws IOException {
@@ -279,6 +285,7 @@ public class JHBuildJavaWrapper {
         this.downloader = downloader;
         this.actionOnMissingGit = actionOnMissingGit;
         this.actionOnMissingZlib = actionOnMissingZlib;
+        this.actionOnMissingLibffi = actionOnMissingLibffi;
         this.actionOnMissingJHBuild = actionOnMissingJHBuild;
         this.actionOnMissingPython = actionOnMissingPython;
         this.skipMD5SumCheck = skipMD5SumCheck;
@@ -414,12 +421,9 @@ public class JHBuildJavaWrapper {
             }
         }
         //zlib is a prerequisite of python build
-        Optional<Path> hit = Files.walk(installationPrefixDir.toPath())
-                .filter(file -> file.getFileName().toFile().getName().equals("zlib.pc"))
-                .findAny();
-            //recursive search, from
-            //https://stackoverflow.com/questions/10780747/recursively-search-for-a-directory-in-java
-        if(hit.isPresent()) {
+        boolean zlibPresent = checkLibPresence(installationPrefixDir,
+                "zlib.pc");
+        if(zlibPresent) {
             LOGGER.debug("using existing version of zlib in installation prefix");
         }else {
             switch(actionOnMissingZlib) {
@@ -442,6 +446,35 @@ public class JHBuildJavaWrapper {
                         return;
                     }
                     assert "".equals(zlib);
+            }
+        }
+        //libffi is prerequisite in order to avoid failure to build `_ctypes`
+        //module of Python
+        boolean libffiPresent = checkLibPresence(installationPrefixDir,
+                "libffi.pc");
+        if(libffiPresent) {
+            LOGGER.debug("using existing version of libffi in installation prefix");
+        }else {
+            switch(actionOnMissingLibffi) {
+                case FAIL:
+                    throw new IllegalStateException("library libffi doesn't exist in installation prefix");
+                case DOWNLOAD:
+                    DownloadCombi libffiDownloadCombi = new DownloadCombi("http://sourceware.org/pub/libffi/libffi-3.2.tar.gz", //downloadURL
+                            "libffi-3.2.tar.gz", //downloadTarget
+                            ExtractionMode.EXTRACTION_MODE_TAR_GZ,
+                            "libffi-3.2", //extractionLocation
+                            "41e0216cc2be4029fad3128988295f0f" //md5sum
+                    );
+                    String libffi = installPrerequisiteAutotools(installationPrefixPath,
+                            "", //binary (library doesn't provide binary, see
+                                //installPrerequisiteAutotools for details)
+                            "libffi",
+                            libffiDownloadCombi);
+                    if(libffi == null) {
+                        //interactive download has been canceled
+                        return;
+                    }
+                    assert "".equals(libffi);
             }
         }
         try {
@@ -964,5 +997,24 @@ public class JHBuildJavaWrapper {
         return binary;
             //is found in modified path of every process built with
             //buildProcess
+    }
+
+    /**
+     * Checks presence of a {@code .pc} file in the specified installation
+     * prefix which allows to conclude that the library is installed in a
+     * rudimentary way.
+     *
+     * @param pcFileName the name of the {@code .pc} file to search for
+     * @throws IOException if {@link Files.walk} throws such an exception
+     * @return {@code true} if the file has been found, {@code false} otherwise
+     */
+    private boolean checkLibPresence(File installationPrefixDir,
+            String pcFileName) throws IOException {
+        Optional<Path> hit = Files.walk(installationPrefixDir.toPath())
+                .filter(file -> file.getFileName().toFile().getName().equals(pcFileName))
+                .findAny();
+            //recursive search, from
+            //https://stackoverflow.com/questions/10780747/recursively-search-for-a-directory-in-java
+        return hit.isPresent();
     }
 }
