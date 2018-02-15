@@ -844,6 +844,8 @@ public class JHBuildJavaWrapper {
                 return MD5SumCheckUnequalsCallbackReaction.RETRY;
             });
         if(!notCanceled) {
+            LOGGER.debug(String.format("install prerequisiste download for %s canceled",
+                    binaryDescription));
             return null;
         }
         //need make for building and it's overly hard to bootstrap
@@ -861,6 +863,8 @@ public class JHBuildJavaWrapper {
         assert extractionLocationDir.exists();
         synchronized(this) {
             if(canceled) {
+                LOGGER.debug(String.format("canceling prerequisiste installation of %s because the build wrapper has been canceled",
+                        binaryDescription));
                 return null;
             }
         }
@@ -876,6 +880,8 @@ public class JHBuildJavaWrapper {
         }
         synchronized(this) {
             if(canceled) {
+                LOGGER.debug(String.format("canceling prerequisiste installation of %s because the build wrapper has been canceled",
+                        binaryDescription));
                 return null;
             }
         }
@@ -890,6 +896,8 @@ public class JHBuildJavaWrapper {
         }
         synchronized(this) {
             if(canceled) {
+                LOGGER.debug(String.format("canceling prerequisiste installation of %s because the build wrapper has been canceled",
+                        binaryDescription));
                 return null;
             }
         }
