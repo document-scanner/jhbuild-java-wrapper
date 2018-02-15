@@ -477,6 +477,8 @@ public class JHBuildJavaWrapper {
                     assert "".equals(libffi);
             }
         }
+        //unclear why git version of Python has been used before (only increases
+        //download time and might include instabilities from master)
         try {
             BinaryTools.validateBinary(python,
                     "python",
@@ -487,119 +489,26 @@ public class JHBuildJavaWrapper {
                     throw new IllegalStateException(String.format("python binary '%s' doesn't exist and can't be found in PATH",
                             python));
                 case DOWNLOAD:
-                    File pythonCloneDir = new File(downloadDir, "python");
-                    boolean needClone = true;
-                    if(pythonCloneDir.exists()
-                            && pythonCloneDir.list().length > 0) {
-                        //check whether the existing non-empty directory is a
-                        //valid source root
-                        synchronized(this) {
-                            if(canceled) {
-                                return;
-                            }
-                        }
-                        Process pythonSourceRootCheckProcess = createProcess(pythonCloneDir,
-                                installationPrefixPath,
-                                git,
-                                "status");
-                        LOGGER.debug("waiting for python source root check");
-                        pythonSourceRootCheckProcess.waitFor();
-                        if(pythonSourceRootCheckProcess.exitValue() != 0) {
-                            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(pythonSourceRootCheckProcess).getKey();
-                            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(pythonSourceRootCheckProcess).getValue();
-                            stdoutReaderThread.join();
-                            stderrReaderThread.join();
-                            throw new IllegalStateException(String.format("The "
-                                    + "python clone directory '%s' already "
-                                    + "exist, is not empty and is not a valid "
-                                    + "git source root. This might be the "
-                                    + "result of a failing previous checkout. "
-                                    + "You need to check and eventually delete "
-                                    + "the existing directory or specify "
-                                    + "another download directory for JHBuild "
-                                    + "Java wrapper (git status process had "
-                                    + "stdout '%s' and stderr '%s').",
-                                    pythonCloneDir.getAbsolutePath(),
-                                    stdoutReaderThread.getOutputBuilder().toString(),
-                                    stderrReaderThread.getOutputBuilder().toString()));
-                        }
-                        needClone = false;
+                    DownloadCombi pythonDownloadCombi = new DownloadCombi("https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tgz",
+                            "Python-3.6.4.tgz",
+                            ExtractionMode.EXTRACTION_MODE_TAR_GZ,
+                            "Python-3.6.4",
+                            "9de6494314ea199e3633211696735f65");
+                    python = installPrerequisiteAutotools(installationPrefixPath,
+                            "python",
+                            "python",
+                            pythonDownloadCombi);
+                    if(python == null) {
+                        //interactive download has been canceled
+                        return;
                     }
-                    if(needClone) {
-                        synchronized(this) {
-                            if(canceled) {
-                                return;
-                            }
-                        }
-                        Process pythonCloneProcess = createProcess(installationPrefixPath,
-                                git,
-                                "clone",
-                                "https://github.com/python/cpython",
-                                pythonCloneDir.getAbsolutePath());
-                            //directory doesn't matter because target path is
-                            //absolute
-                        LOGGER.debug("waiting for python download");
-                        pythonCloneProcess.waitFor();
-                        if(pythonCloneProcess.exitValue() != 0) {
-                            handleBuilderFailure("python",
-                                    BuildStep.CLONE,
-                                    pythonCloneProcess);
-                        }
-                        LOGGER.debug("python download finished");
+                    try {
+                        BinaryTools.validateBinary(python,
+                                "python",
+                                installationPrefixPath);
+                    } catch (BinaryValidationException ex2) {
+                        assert false: "python exisistence check or installation failed";
                     }
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process pythonConfigureProcess = createProcess(pythonCloneDir,
-                            installationPrefixPath,
-                            sh, "configure",
-                            String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
-                        //no autogen.sh available
-                    LOGGER.debug("waiting for python configure process");
-                    pythonConfigureProcess.waitFor();
-                    if(pythonConfigureProcess.exitValue() != 0) {
-                        handleBuilderFailure("python",
-                                BuildStep.CONFIGURE,
-                                pythonConfigureProcess);
-                    }
-                    LOGGER.debug("python build configure process finished");
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process pythonMakeProcess = createProcess(pythonCloneDir,
-                            installationPrefixPath,
-                            make, String.format("-j%d", parallelism));
-                    LOGGER.debug("waiting for python build process");
-                    pythonMakeProcess.waitFor();
-                    if(pythonMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure("python",
-                                BuildStep.MAKE,
-                                pythonMakeProcess);
-                    }
-                    LOGGER.debug("python build process finished");
-                    synchronized(this) {
-                        if(canceled) {
-                            return;
-                        }
-                    }
-                    Process pythonMakeInstallProcess = createProcess(pythonCloneDir,
-                            installationPrefixPath,
-                            make, "install");
-                    LOGGER.debug("waiting for python installation process");
-                    pythonMakeInstallProcess.waitFor();
-                    if(pythonMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild", BuildStep.MAKE_INSTALL, pythonMakeInstallProcess);
-                    }
-                    LOGGER.debug("python installation process finished");
-                    python = "python";
-                        //is found in modified path of every process built with
-                        //buildProcess
-                    LOGGER.debug(String.format("using python command '%s'",
-                            python));
             }
         }
         try {
