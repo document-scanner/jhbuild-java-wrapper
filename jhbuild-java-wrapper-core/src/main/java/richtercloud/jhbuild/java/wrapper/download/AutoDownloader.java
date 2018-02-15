@@ -98,6 +98,7 @@ public class AutoDownloader implements Downloader {
         return true;
     }
 
+    @SuppressWarnings("NestedAssignment")
     protected boolean download(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
@@ -136,17 +137,15 @@ public class AutoDownloader implements Downloader {
             boolean success = false;
             while(!success) {
                 URL downloadURLURL = new URL(downloadCombi.getDownloadURL());
-                FileOutputStream out =
-                        new FileOutputStream(downloadCombi.getDownloadTarget());
-                InputStream downloadURLInputStream = downloadURLURL.openStream();
-                LOGGER.debug(String.format("downloading from URL '%s' into file '%s'",
-                        downloadCombi.getDownloadURL(),
-                        downloadCombi.getDownloadTarget()));
-                IOUtils.copy(downloadURLInputStream,
-                        out);
-                out.flush();
-                out.close();
-                downloadURLInputStream.close();
+                try (FileOutputStream out = new FileOutputStream(downloadCombi.getDownloadTarget());
+                        InputStream downloadURLInputStream = downloadURLURL.openStream();
+                ) {
+                    LOGGER.debug(String.format("downloading from URL '%s' into file '%s'",
+                            downloadCombi.getDownloadURL(),
+                            downloadCombi.getDownloadTarget()));
+                    IOUtils.copy(downloadURLInputStream,
+                            out);
+                }
                 if(isCanceled()) {
                     LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled",
                             downloadCombi.getDownloadURL()));
@@ -186,91 +185,102 @@ public class AutoDownloader implements Downloader {
         File extractionDir = new File(downloadCombi.getExtractionLocation());
         if(!extractionDir.exists() || (extractionDir.exists() && extractionDir.list().length == 0)) {
             FileInputStream fileInputStream = new FileInputStream(downloadCombi.getDownloadTarget());
-            if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_TAR_GZ) {
-                GZIPInputStream gZIPInputStream = new GZIPInputStream(fileInputStream);
-                TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(gZIPInputStream);
-                String extractionDirTar = extractionDir.getParent();
-                LOGGER.debug(String.format("extracting .tar.gz archive into '%s'",
-                        extractionDirTar));
-                TarArchiveEntry entry = null;
-                while ((entry = (TarArchiveEntry)tarArchiveInputStream.getNextEntry()) != null) {
-                    final File outputFile = new File(extractionDirTar, entry.getName());
-                    if (entry.isDirectory()) {
-                        LOGGER.trace(String.format("Attempting to write output directory %s.",
-                                outputFile.getAbsolutePath()));
-                        if (!outputFile.exists()) {
-                            LOGGER.trace(String.format("Attempting to create output directory %s.",
-                                    outputFile.getAbsolutePath()));
-                            if (!outputFile.mkdirs()) {
-                                throw new IllegalStateException(String.format("Couldn't create directory %s.", outputFile.getAbsolutePath()));
-                            }
-                        }
-                    } else {
-                        LOGGER.trace(String.format("Creating output file %s.",
-                                outputFile.getAbsolutePath()));
-                        final File outputFileParent = outputFile.getParentFile();
-                        if (!outputFileParent.exists()) {
-                            if(!outputFileParent.mkdirs()) {
-                                throw new IOException(String.format("Couldn't create directory %s.", outputFileParent.getAbsolutePath()));
-                            }
-                        }
-                        final OutputStream outputFileStream = new FileOutputStream(outputFile);
-                        IOUtils.copy(tarArchiveInputStream, outputFileStream);
-                        outputFileStream.close();
-                    }
-                    //not the most efficient way, but certainly a
-                    //comprehensive one
-                    int modeOctal = Integer.parseInt(Integer.toOctalString(entry.getMode()));
-                    Path outputFilePath = Paths.get(outputFile.getAbsolutePath());
-                    StringBuilder permStringBuilder = new StringBuilder(9);
-                    int modeUser = modeOctal / 100;
-                    int modeGroup = (modeOctal % 100) / 10;
-                    int modeOthers = modeOctal % 10;
-                    //from http://stackoverflow.com/questions/34234598/how-to-convert-an-input-of-3-octal-numbers-into-chmod-permissions-into-binary
-                    permStringBuilder.append((modeUser & 4) == 0 ? '-' : 'r')
-                            .append((modeUser & 2) == 0 ? '-' : 'w')
-                            .append((modeUser & 1) == 0 ? '-' : 'x')
-                            .append((modeGroup & 4) == 0 ? '-' : 'r')
-                            .append((modeGroup & 2) == 0 ? '-' : 'w')
-                            .append((modeGroup & 1) == 0 ? '-' : 'x')
-                            .append((modeOthers & 4) == 0 ? '-' : 'r')
-                            .append((modeOthers & 2) == 0 ? '-' : 'w')
-                            .append((modeOthers & 1) == 0 ? '-' : 'x');
-                    String permString = permStringBuilder.toString();
-                    Files.setPosixFilePermissions(outputFilePath, PosixFilePermissions.fromString(permString));
-                }
-                tarArchiveInputStream.close();
-            }else if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_ZIP) {
-                FileUtils.forceMkdir(extractionDir);
-                LOGGER.debug(String.format("extracting .zip archive into '%s'",
-                        extractionDir));
-                ZipInputStream zipIn = new ZipInputStream(new FileInputStream(downloadCombi.getDownloadTarget()));
-                ZipEntry entry = zipIn.getNextEntry();
-                // iterates over entries in the zip file
-                while (entry != null) {
-                    String filePath = extractionDir.getParent() + File.separator + entry.getName();
-                    File fileParent = new File(filePath).getParentFile();
-                    if(!fileParent.exists()) {
-                        FileUtils.forceMkdir(fileParent);
-                    }
-                    if (!entry.isDirectory()) {
-                        // if the entry is a file, extracts it
-                        DownloadTools.extractFile(zipIn, filePath);
-                    } else {
-                        // if the entry is a directory, make the directory
-                        File dir = new File(filePath);
-                        dir.mkdir();
-                    }
-                    zipIn.closeEntry();
-                    entry = zipIn.getNextEntry();
-                }
-                zipIn.close();
-            }else {
+            if(null == downloadCombi.getExtractionMode()) {
                 //if extractionMode was EXTRACTION_MODE_NONE the method
                 //would already have returned
                 throw new IllegalArgumentException(String.format(
-                        "extractionMode %s isn't supported",
+                        "extractionMode mustn't be null",
                         downloadCombi.getExtractionMode().getLabel()));
+            }else {
+                switch (downloadCombi.getExtractionMode()) {
+                    case EXTRACTION_MODE_TAR_GZ:
+                        GZIPInputStream gZIPInputStream = new GZIPInputStream(fileInputStream);
+                        try (TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(gZIPInputStream)) {
+                            String extractionDirTar = extractionDir.getParent();
+                            LOGGER.debug(String.format("extracting .tar.gz archive into '%s'",
+                                    extractionDirTar));
+                            TarArchiveEntry entry;
+                            while ((entry = (TarArchiveEntry)tarArchiveInputStream.getNextEntry()) != null) {
+                                final File outputFile = new File(extractionDirTar, entry.getName());
+                                if (entry.isDirectory()) {
+                                    LOGGER.trace(String.format("Attempting to write output directory %s.",
+                                            outputFile.getAbsolutePath()));
+                                    if (!outputFile.exists()) {
+                                        LOGGER.trace(String.format("Attempting to create output directory %s.",
+                                                outputFile.getAbsolutePath()));
+                                        if (!outputFile.mkdirs()) {
+                                            throw new IllegalStateException(String.format("Couldn't create directory %s.", outputFile.getAbsolutePath()));
+                                        }
+                                    }
+                                } else {
+                                    LOGGER.trace(String.format("Creating output file %s.",
+                                            outputFile.getAbsolutePath()));
+                                    final File outputFileParent = outputFile.getParentFile();
+                                    if (!outputFileParent.exists()) {
+                                        if(!outputFileParent.mkdirs()) {
+                                            throw new IOException(String.format("Couldn't create directory %s.", outputFileParent.getAbsolutePath()));
+                                        }
+                                    }
+                                    try (OutputStream outputFileStream = new FileOutputStream(outputFile)) {
+                                        IOUtils.copy(tarArchiveInputStream, outputFileStream);
+                                    }
+                                }
+                                //not the most efficient way, but certainly a
+                                //comprehensive one
+                                int modeOctal = Integer.parseInt(Integer.toOctalString(entry.getMode()));
+                                Path outputFilePath = Paths.get(outputFile.getAbsolutePath());
+                                StringBuilder permStringBuilder = new StringBuilder(9);
+                                int modeUser = modeOctal / 100;
+                                int modeGroup = (modeOctal % 100) / 10;
+                                int modeOthers = modeOctal % 10;
+                                //from http://stackoverflow.com/questions/34234598/how-to-convert-an-input-of-3-octal-numbers-into-chmod-permissions-into-binary
+                                permStringBuilder.append((modeUser & 4) == 0 ? '-' : 'r')
+                                        .append((modeUser & 2) == 0 ? '-' : 'w')
+                                        .append((modeUser & 1) == 0 ? '-' : 'x')
+                                        .append((modeGroup & 4) == 0 ? '-' : 'r')
+                                        .append((modeGroup & 2) == 0 ? '-' : 'w')
+                                        .append((modeGroup & 1) == 0 ? '-' : 'x')
+                                        .append((modeOthers & 4) == 0 ? '-' : 'r')
+                                        .append((modeOthers & 2) == 0 ? '-' : 'w')
+                                        .append((modeOthers & 1) == 0 ? '-' : 'x');
+                                String permString = permStringBuilder.toString();
+                                Files.setPosixFilePermissions(outputFilePath, PosixFilePermissions.fromString(permString));
+                            }
+                        }
+                        break;
+                    case EXTRACTION_MODE_ZIP:
+                        FileUtils.forceMkdir(extractionDir);
+                        LOGGER.debug(String.format("extracting .zip archive into '%s'",
+                                extractionDir));
+                        try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(downloadCombi.getDownloadTarget()))) {
+                            ZipEntry entry = zipIn.getNextEntry();
+                            // iterates over entries in the zip file
+                            while (entry != null) {
+                                String filePath = extractionDir.getParent() + File.separator + entry.getName();
+                                File fileParent = new File(filePath).getParentFile();
+                                if(!fileParent.exists()) {
+                                    FileUtils.forceMkdir(fileParent);
+                                }
+                                if (!entry.isDirectory()) {
+                                    // if the entry is a file, extracts it
+                                    DownloadTools.extractFile(zipIn, filePath);
+                                } else {
+                                    // if the entry is a directory, make the directory
+                                    File dir = new File(filePath);
+                                    dir.mkdir();
+                                }
+                                zipIn.closeEntry();
+                                entry = zipIn.getNextEntry();
+                            }
+                        }
+                        break;
+                    default:
+                        //if extractionMode was EXTRACTION_MODE_NONE the method
+                        //would already have returned
+                        throw new IllegalArgumentException(String.format(
+                                "extractionMode %s isn't supported",
+                                downloadCombi.getExtractionMode().getLabel()));
+                }
             }
         }else {
             if(!extractionDir.isDirectory()) {
