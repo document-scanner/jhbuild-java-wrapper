@@ -74,12 +74,12 @@ import richtercloud.jhbuild.java.wrapper.download.Downloader;
  */
 public class JHBuildJavaWrapper {
     private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapper.class);
-    private final static String GIT_DEFAULT = "git";
-    private final static String JHBUILD_DEFAULT = "jhbuild";
-    private final static String SH_DEFAULT = "bash";
-    private final static String MAKE_DEFAULT = "make";
-    private final static String PYTHON_DEFAULT = "python";
-    private final static String CC_DEFAULT = "gcc";
+    public final static String GIT_DEFAULT = "git";
+    public final static String JHBUILD_DEFAULT = "jhbuild";
+    public final static String SH_DEFAULT = "bash";
+    public final static String MAKE_DEFAULT = "make";
+    public final static String PYTHON_DEFAULT = "python";
+    public final static String CC_DEFAULT = "gcc";
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
             "git-2.13.3.tar.gz",
             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
@@ -108,7 +108,7 @@ public class JHBuildJavaWrapper {
     public final static File DOWNLOAD_DIR_DEFAULT = new File(CONFIG_DIR,
             "downloads");
 
-    private static int calculateParallelism() {
+    public static int calculateParallelism() {
         return Runtime.getRuntime().availableProcessors();
     }
 
