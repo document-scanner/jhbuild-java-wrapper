@@ -126,6 +126,8 @@ public class AutoDownloader implements Downloader {
             }
         }
         if(isCanceled()) {
+            LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled",
+                    downloadCombi.getDownloadURL()));
             return false;
         }
         if(needDownload) {
@@ -144,6 +146,8 @@ public class AutoDownloader implements Downloader {
                 out.close();
                 downloadURLInputStream.close();
                 if(isCanceled()) {
+                    LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled",
+                            downloadCombi.getDownloadURL()));
                     return false;
                 }
                 if(downloadCombi.getMd5Sum().isEmpty()) {
@@ -159,6 +163,8 @@ public class AutoDownloader implements Downloader {
                                 md5 //actualMD5Sum
                         );
                         if(reaction == MD5SumCheckUnequalsCallbackReaction.CANCEL) {
+                            LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled based on predefined decision for md5 checksum mismatch",
+                                    downloadCombi.getDownloadURL()));
                             return false;
                         }
                     }
@@ -166,9 +172,13 @@ public class AutoDownloader implements Downloader {
             }
         }
         if(isCanceled()) {
+            LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled",
+                    downloadCombi.getDownloadURL()));
             return false;
         }
         if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_NONE) {
+            LOGGER.debug(String.format("nothing to do for extraction mode '%s', returning successfully",
+                    ExtractionMode.EXTRACTION_MODE_NONE.getLabel()));
             return true;
         }
         File extractionDir = new File(downloadCombi.getExtractionLocation());
