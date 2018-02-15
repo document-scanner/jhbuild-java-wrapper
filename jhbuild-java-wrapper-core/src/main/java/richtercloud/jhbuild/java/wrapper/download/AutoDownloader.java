@@ -188,20 +188,24 @@ public class AutoDownloader implements Downloader {
                 GZIPInputStream gZIPInputStream = new GZIPInputStream(fileInputStream);
                 TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(gZIPInputStream);
                 String extractionDirTar = extractionDir.getParent();
-                LOGGER.debug(String.format("extracting .tar.gz archive into '%s'", extractionDirTar));
+                LOGGER.debug(String.format("extracting .tar.gz archive into '%s'",
+                        extractionDirTar));
                 TarArchiveEntry entry = null;
                 while ((entry = (TarArchiveEntry)tarArchiveInputStream.getNextEntry()) != null) {
                     final File outputFile = new File(extractionDirTar, entry.getName());
                     if (entry.isDirectory()) {
-                        LOGGER.trace(String.format("Attempting to write output directory %s.", outputFile.getAbsolutePath()));
+                        LOGGER.trace(String.format("Attempting to write output directory %s.",
+                                outputFile.getAbsolutePath()));
                         if (!outputFile.exists()) {
-                            LOGGER.trace(String.format("Attempting to create output directory %s.", outputFile.getAbsolutePath()));
+                            LOGGER.trace(String.format("Attempting to create output directory %s.",
+                                    outputFile.getAbsolutePath()));
                             if (!outputFile.mkdirs()) {
                                 throw new IllegalStateException(String.format("Couldn't create directory %s.", outputFile.getAbsolutePath()));
                             }
                         }
                     } else {
-                        LOGGER.trace(String.format("Creating output file %s.", outputFile.getAbsolutePath()));
+                        LOGGER.trace(String.format("Creating output file %s.",
+                                outputFile.getAbsolutePath()));
                         final File outputFileParent = outputFile.getParentFile();
                         if (!outputFileParent.exists()) {
                             if(!outputFileParent.mkdirs()) {
@@ -236,7 +240,8 @@ public class AutoDownloader implements Downloader {
                 tarArchiveInputStream.close();
             }else if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_ZIP) {
                 FileUtils.forceMkdir(extractionDir);
-                LOGGER.debug(String.format("extracting .zip archive into '%s'", extractionDir));
+                LOGGER.debug(String.format("extracting .zip archive into '%s'",
+                        extractionDir));
                 ZipInputStream zipIn = new ZipInputStream(new FileInputStream(downloadCombi.getDownloadTarget()));
                 ZipEntry entry = zipIn.getNextEntry();
                 // iterates over entries in the zip file
