@@ -130,6 +130,8 @@ public class AutoDownloader implements Downloader {
                     downloadCombi.getDownloadURL()));
             return false;
         }
+        LOGGER.debug(String.format("needDownload: %s",
+                String.valueOf(needDownload)));
         if(needDownload) {
             boolean success = false;
             while(!success) {
