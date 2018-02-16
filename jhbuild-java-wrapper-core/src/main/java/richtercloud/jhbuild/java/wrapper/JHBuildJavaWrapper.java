@@ -765,7 +765,16 @@ public class JHBuildJavaWrapper {
         LOGGER.debug("waiting for jhbuild bootstrap process");
         jhbuildBootstrapProcess.waitFor();
         if(jhbuildBootstrapProcess.exitValue() != 0) {
-            throw new RuntimeException(); //@TODO:
+            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(jhbuildBootstrapProcess).getKey();
+            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(jhbuildBootstrapProcess).getValue();
+            stdoutReaderThread.join();
+            stderrReaderThread.join();
+            throw new ModuleBuildFailureException(String.format("jhbuild "
+                    + "bootstrap process returned with code %d (stdout was "
+                    + "'%s' and stderr was '%s')",
+                    jhbuildBootstrapProcess.exitValue(),
+                    stdoutReaderThread.getOutputBuilder().toString(),
+                    stderrReaderThread.getOutputBuilder().toString()));
         }
         LOGGER.debug("jhbuild bootstrap process finished");
         File modulesetFile = Files.createTempFile(JHBuildJavaWrapper.class.getSimpleName(), //prefix
