@@ -801,7 +801,7 @@ public class JHBuildJavaWrapper {
             stderrReaderThread.join();
             throw new ModuleBuildFailureException(String.format("jhbuild "
                     + "returned with code %d during building of module (stdout "
-                    + "was '%s' and stderr was '%s'",
+                    + "was '%s' and stderr was '%s')",
                     jhbuildProcess.exitValue(),
                     stdoutReaderThread.getOutputBuilder().toString(),
                     stderrReaderThread.getOutputBuilder().toString()));
