@@ -84,7 +84,7 @@ public class JHBuildJavaWrapper {
             "git-2.13.3.tar.gz",
             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
             "git-2.13.3",
-            "e10ede8b80a2c987d04ee376534cb7e1");
+            "d2dc550f6693ba7e5b16212b2714f59f");
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_64_DEFAULT = GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT;
     private final static DownloadCombi GIT_DOWNLOAD_COMBI_WINDOWS_32_DEFAULT = new DownloadCombi("https://github.com/git-for-windows/git/releases/download/v2.13.3.windows.1/PortableGit-2.13.3-32-bit.7z.exe",
             "PortableGit-2.13.3-32-bit.7z.exe",
