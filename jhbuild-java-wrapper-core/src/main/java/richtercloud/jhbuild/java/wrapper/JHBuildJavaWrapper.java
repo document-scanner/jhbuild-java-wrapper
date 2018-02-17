@@ -365,7 +365,22 @@ public class JHBuildJavaWrapper {
         return retValue;
     }
 
-    private void init(String installationPrefixPath) throws OSNotRecognizedException,
+    /**
+     * Initialization routines.
+     *
+     * @param installationPrefixPath
+     * @return {@code false} if the download or any build step has been
+     * canceled, {@code true} otherwise
+     * @throws OSNotRecognizedException
+     * @throws ArchitectureNotRecognizedException
+     * @throws IOException
+     * @throws ExtractionException
+     * @throws InterruptedException
+     * @throws MissingSystemBinary
+     * @throws BuildFailureException
+     * @throws InitCanceledException
+     */
+    private boolean init(String installationPrefixPath) throws OSNotRecognizedException,
             ArchitectureNotRecognizedException,
             IOException,
             ExtractionException,
@@ -374,7 +389,7 @@ public class JHBuildJavaWrapper {
             BuildFailureException {
         if(inited) {
             LOGGER.debug("already inited");
-            return;
+            return true;
         }
         LOGGER.trace(String.format("silenceStdout: %s",
                 silenceStdout));
@@ -409,7 +424,7 @@ public class JHBuildJavaWrapper {
                             gitDownloadCombi);
                     if(git == null) {
                         //interactive download has been canceled
-                        return;
+                        return false;
                     }
                     try {
                         BinaryTools.validateBinary(git,
@@ -443,7 +458,7 @@ public class JHBuildJavaWrapper {
                             zlibDownloadCombi);
                     if(zlib == null) {
                         //interactive download has been canceled
-                        return;
+                        return false;
                     }
                     assert "".equals(zlib);
             }
@@ -472,7 +487,7 @@ public class JHBuildJavaWrapper {
                             libffiDownloadCombi);
                     if(libffi == null) {
                         //interactive download has been canceled
-                        return;
+                        return false;
                     }
                     assert "".equals(libffi);
             }
@@ -500,7 +515,7 @@ public class JHBuildJavaWrapper {
                             pythonDownloadCombi);
                     if(python == null) {
                         //interactive download has been canceled
-                        return;
+                        return false;
                     }
                     try {
                         BinaryTools.validateBinary(python,
@@ -529,7 +544,7 @@ public class JHBuildJavaWrapper {
                         //valid source root
                         synchronized(this) {
                             if(canceled) {
-                                return;
+                                return false;
                             }
                         }
                         Process jhbuildSourceRootCheckProcess = createProcess(jhbuildCloneDir,
@@ -562,7 +577,7 @@ public class JHBuildJavaWrapper {
                     if(needClone) {
                         synchronized(this) {
                             if(canceled) {
-                                return;
+                                return false;
                             }
                         }
                         Process jhbuildCloneProcess = createProcess(installationPrefixPath,
@@ -583,7 +598,7 @@ public class JHBuildJavaWrapper {
                     }
                     synchronized(this) {
                         if(canceled) {
-                            return;
+                            return false;
                         }
                     }
                     Process jhbuildAutogenProcess = createProcess(jhbuildCloneDir,
@@ -601,7 +616,7 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("jhbuild build bootstrap process finished");
                     synchronized(this) {
                         if(canceled) {
-                            return;
+                            return false;
                         }
                     }
                     Process jhbuildMakeProcess = createProcess(jhbuildCloneDir,
@@ -617,7 +632,7 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("jhbuild build process finished");
                     synchronized(this) {
                         if(canceled) {
-                            return;
+                            return false;
                         }
                     }
                     Process jhbuildMakeInstallProcess = createProcess(jhbuildCloneDir,
@@ -639,6 +654,7 @@ public class JHBuildJavaWrapper {
             }
         }
         this.inited = true;
+        return true;
     }
 
     private void handleBuilderFailure(String moduleName,
@@ -701,7 +717,7 @@ public class JHBuildJavaWrapper {
      * @throws MissingSystemBinary
      * @throws BuildFailureException
      */
-    public void installModuleset(String moduleName) throws OSNotRecognizedException,
+    public boolean installModuleset(String moduleName) throws OSNotRecognizedException,
             ArchitectureNotRecognizedException,
             IOException,
             ExtractionException,
@@ -711,8 +727,9 @@ public class JHBuildJavaWrapper {
             ModuleBuildFailureException {
         InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetInputStream != null;
-        installModuleset(modulesetInputStream,
+        boolean retValue = installModuleset(modulesetInputStream,
                 moduleName);
+        return retValue;
     }
 
     /**
@@ -740,7 +757,7 @@ public class JHBuildJavaWrapper {
     handling of InputStream which have been acquired through
     Class.getResourceAsStream since those might be null
     */
-    public void installModuleset(InputStream modulesetInputStream,
+    public boolean installModuleset(InputStream modulesetInputStream,
             String moduleName) throws OSNotRecognizedException,
             ArchitectureNotRecognizedException,
             IOException,
@@ -758,7 +775,10 @@ public class JHBuildJavaWrapper {
         }
         String installationPrefixPath = String.join(File.pathSeparator, System.getenv("PATH"),
                 String.join(File.separator, installationPrefixDir.getAbsolutePath(), "bin"));
-        init(installationPrefixPath);
+        boolean notCanceled = init(installationPrefixPath);
+        if(!notCanceled) {
+            return false;
+        }
         LOGGER.debug(String.format("building module %s with jhbuild command %s",
                 moduleName,
                 jhbuild));
@@ -819,6 +839,7 @@ public class JHBuildJavaWrapper {
                     stderrReaderThread.getOutputBuilder().toString()));
         }
         LOGGER.debug("jhbuild build process finished");
+        return true;
     }
 
     /**
