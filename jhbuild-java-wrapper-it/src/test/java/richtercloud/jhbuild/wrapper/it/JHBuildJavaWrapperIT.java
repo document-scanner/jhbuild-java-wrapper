@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +48,12 @@ public class JHBuildJavaWrapperIT {
             MissingSystemBinary,
             BuildFailureException,
             ModuleBuildFailureException {
-        File installationPrefixDir = Files.createTempDirectory(JHBuildJavaWrapperIT.class.getSimpleName()).toFile();
+        File installationPrefixDir = Files.createTempDirectory(String.format("%s-prefix",
+                JHBuildJavaWrapperIT.class.getSimpleName())).toFile();
         LOGGER.debug(String.format("installation prefix directory: %s",
                 installationPrefixDir.getAbsolutePath()));
-        File downloadDir = new File(SystemUtils.getUserHome(), "sources");
+        File downloadDir = Files.createTempDirectory(String.format("%s-download",
+                JHBuildJavaWrapperIT.class.getSimpleName())).toFile();
         LOGGER.debug(String.format("download directory: %s",
                 downloadDir.getAbsolutePath()));
         Downloader downloader = new AutoDownloader();

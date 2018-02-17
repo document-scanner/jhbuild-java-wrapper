@@ -134,7 +134,7 @@ public class JHBuildJavaWrapperTest {
      */
     @Test
     @PrepareForTest(BinaryTools.class)
-    public void testInstallModulesetStringMissingGit() throws Exception {
+    public void testInstallModulesetStringMissingInitBinaries() throws Exception {
         //null and empty module name tested in testInstallModulesetInputStreamString
         JHBuildJavaWrapper instance = generateDefaultTestInstance();
         mockStatic(BinaryTools.class);

@@ -15,6 +15,7 @@
 package richtercloud.jhbuild.java.wrapper;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -84,6 +85,7 @@ public class JHBuildJavaWrapper {
             "installation-prefix");
     public final static File DOWNLOAD_DIR_DEFAULT = new File(CONFIG_DIR,
             "downloads");
+    private final static String PATH = "PATH";
 
     public static int calculateParallelism() {
         return Runtime.getRuntime().availableProcessors();
@@ -269,6 +271,17 @@ public class JHBuildJavaWrapper {
         return retValue;
     }
 
+    private Process createProcess(File directory,
+            String path,
+            String... commands) throws IOException {
+        Process retValue = createProcess(directory,
+                ImmutableMap.<String, String>builder()
+                        .put("PATH", path)
+                        .build(),
+                commands);
+        return retValue;
+    }
+
     /**
      * Allows sharing code between different process creation routines.
      *
@@ -286,11 +299,11 @@ public class JHBuildJavaWrapper {
     complex as checking the condition before calls to createProcess
     */
     private Process createProcess(File directory,
-            String path,
+            Map<String, String> env,
             String... commands) throws IOException {
-        LOGGER.trace(String.format("building process with commands '%s' with PATH '%s' running in %s",
+        LOGGER.trace(String.format("building process with commands '%s' with environment '%s' running in %s",
                 Arrays.asList(commands),
-                path,
+                env,
                 directory != null ? String.format("directory '%s'",
                         directory.getAbsolutePath())
                         : "current directory"));
@@ -304,8 +317,7 @@ public class JHBuildJavaWrapper {
         if(directory != null) {
             processBuilder.directory(directory);
         }
-        processBuilder.environment().put("PATH",
-                path);
+        processBuilder.environment().putAll(env);
         Process retValue = processBuilder.start();
         if(silenceStdout || silenceStderr) {
             OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
@@ -354,6 +366,7 @@ public class JHBuildJavaWrapper {
             LOGGER.debug("already inited");
             return true;
         }
+        assert downloadDir.exists() && downloadDir.isDirectory();
         LOGGER.trace(String.format("silenceStdout: %s",
                 silenceStdout));
         LOGGER.trace(String.format("silenceStderr: %s",
@@ -380,9 +393,11 @@ public class JHBuildJavaWrapper {
                     throw new IllegalStateException("library zlib doesn't exist in installation prefix");
                 case DOWNLOAD:
                     DownloadCombi zlibDownloadCombi = new DownloadCombi("https://www.zlib.net/zlib-1.2.11.tar.gz", //downloadURL
-                            "zlib-1.2.11.tar.gz", //downloadTarget
+                            new File(downloadDir,
+                                    "zlib-1.2.11.tar.gz").getAbsolutePath(), //downloadTarget
                             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
-                            "zlib-1.2.11", //extractionLocation
+                            new File(downloadDir,
+                                    "zlib-1.2.11").getAbsolutePath(), //extractionLocation
                             "1c9f62f0778697a09d36121ead88e08e" //md5sum
                     );
                     String zlib = installPrerequisiteAutotools(installationPrefixPath,
@@ -409,9 +424,11 @@ public class JHBuildJavaWrapper {
                     throw new IllegalStateException("library libffi doesn't exist in installation prefix");
                 case DOWNLOAD:
                     DownloadCombi libffiDownloadCombi = new DownloadCombi("http://sourceware.org/pub/libffi/libffi-3.2.tar.gz", //downloadURL
-                            "libffi-3.2.tar.gz", //downloadTarget
+                            new File(downloadDir,
+                                    "libffi-3.2.tar.gz").getAbsolutePath(), //downloadTarget
                             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
-                            "libffi-3.2", //extractionLocation
+                            new File(downloadDir,
+                                    "libffi-3.2").getAbsolutePath(), //extractionLocation
                             "41e0216cc2be4029fad3128988295f0f" //md5sum
                     );
                     String libffi = installPrerequisiteAutotools(installationPrefixPath,
@@ -439,9 +456,11 @@ public class JHBuildJavaWrapper {
                             python));
                 case DOWNLOAD:
                     DownloadCombi pythonDownloadCombi = new DownloadCombi("https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tgz",
-                            "Python-3.6.4.tgz",
+                            new File(downloadDir,
+                                    "Python-3.6.4.tgz").getAbsolutePath(),
                             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
-                            "Python-3.6.4",
+                            new File(downloadDir,
+                                    "Python-3.6.4").getAbsolutePath(),
                             "9de6494314ea199e3633211696735f65");
                     python = installPrerequisiteAutotools(installationPrefixPath,
                             "python",
@@ -471,9 +490,11 @@ public class JHBuildJavaWrapper {
                             git));
                 case DOWNLOAD:
                     DownloadCombi gitDownloadCombi = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
-                            "git-2.13.3.tar.gz",
+                            new File(downloadDir,
+                                    "git-2.13.3.tar.gz").getAbsolutePath(),
                             ExtractionMode.EXTRACTION_MODE_TAR_GZ,
-                            "git-2.13.3",
+                            new File(downloadDir,
+                                    "git-2.13.3").getAbsolutePath(),
                             "d2dc550f6693ba7e5b16212b2714f59f");
                     git = installPrerequisiteAutotools(installationPrefixPath,
                             "git",
@@ -872,7 +893,13 @@ public class JHBuildJavaWrapper {
             }
         }
         Process configureProcess = createProcess(extractionLocationDir,
-                installationPrefixPath,
+                ImmutableMap.<String, String>builder()
+                        .put(PATH, installationPrefixPath)
+                        .put("CFLAGS", String.format("-I%s -L%s",
+                                new File(installationPrefixDir, "include").getAbsolutePath(),
+                                new File(installationPrefixDir, "lib").getAbsolutePath()))
+//                        .put("LDFLAGS", String.format("-L%s", new File(installationPrefixDir, "lib").getAbsolutePath()))
+                        .build(),
                 sh, "configure",
                 String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
         configureProcess.waitFor();
@@ -889,7 +916,12 @@ public class JHBuildJavaWrapper {
             }
         }
         Process makeProcess = createProcess(extractionLocationDir,
-                installationPrefixPath,
+                ImmutableMap.<String, String>builder()
+                        .put(PATH, installationPrefixPath)
+                        .put("CFLAGS", String.format("-I%s -L%s", new File(installationPrefixDir, "include").getAbsolutePath(),
+                                new File(installationPrefixDir, "lib").getAbsolutePath()))
+//                        .put("LDFLAGS", String.format("-L%s", new File(installationPrefixDir, "lib").getAbsolutePath()))
+                        .build(),
                 make, String.format("-j%d", parallelism));
         makeProcess.waitFor();
         if(makeProcess.exitValue() != 0) {
