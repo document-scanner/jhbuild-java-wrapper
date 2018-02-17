@@ -753,6 +753,9 @@ public class JHBuildJavaWrapper {
         if(modulesetInputStream == null) {
             throw new IllegalArgumentException("modulesetInputStream mustn't be null");
         }
+        if(moduleName == null || moduleName.isEmpty()) {
+            throw new IllegalArgumentException("moduleName mustn't be null or empty");
+        }
         String installationPrefixPath = String.join(File.pathSeparator, System.getenv("PATH"),
                 String.join(File.separator, installationPrefixDir.getAbsolutePath(), "bin"));
         init(installationPrefixPath);
