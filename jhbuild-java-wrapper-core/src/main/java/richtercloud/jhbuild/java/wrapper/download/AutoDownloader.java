@@ -135,6 +135,7 @@ public class AutoDownloader implements Downloader {
                 String.valueOf(needDownload)));
         if(needDownload) {
             boolean success = false;
+            int numberOfRetries = 0;
             while(!success) {
                 URL downloadURLURL = new URL(downloadCombi.getDownloadURL());
                 try (FileOutputStream out = new FileOutputStream(downloadCombi.getDownloadTarget());
@@ -161,7 +162,8 @@ public class AutoDownloader implements Downloader {
                         success = true;
                     }else {
                         MD5SumCheckUnequalsCallbackReaction reaction = mD5SumCheckUnequalsCallback.run(downloadCombi.getMd5Sum(), //expectedMD5Sum
-                                md5 //actualMD5Sum
+                                md5, //actualMD5Sum
+                                numberOfRetries //numberOfRetries
                         );
                         if(reaction == MD5SumCheckUnequalsCallbackReaction.CANCEL) {
                             LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled based on predefined decision for md5 checksum mismatch",
@@ -170,6 +172,7 @@ public class AutoDownloader implements Downloader {
                         }
                     }
                 }
+                numberOfRetries += 1;
             }
         }
         if(isCanceled()) {

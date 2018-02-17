@@ -21,6 +21,16 @@ package richtercloud.jhbuild.java.wrapper;
 @FunctionalInterface
 public interface MD5SumCheckUnequalsCallback {
 
+    /**
+     * Allows to make a decision whether the retrieval/download ought to be
+     * canceled or retried.
+     *
+     * @param expectedMD5Sum the expected MD5 checksum
+     * @param actualMD5Sum the actual MD5 checksum
+     * @param numberOfRetries the number of retries (starting with 0)
+     * @return the decision
+     */
     public MD5SumCheckUnequalsCallbackReaction run(String expectedMD5Sum,
-            String actualMD5Sum);
+            String actualMD5Sum,
+            int numberOfRetries);
 }

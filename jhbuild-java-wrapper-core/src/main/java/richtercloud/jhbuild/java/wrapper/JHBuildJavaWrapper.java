@@ -852,8 +852,12 @@ public class JHBuildJavaWrapper {
             ex1 -> {
                 return DownloadFailureCallbackReation.RETRY;
             },
-            (String md5SumExpected, String md5SumActual) -> {
-                return MD5SumCheckUnequalsCallbackReaction.RETRY;
+            (String md5SumExpected,
+                    String md5SumActual,
+                    int numberOfRetries) -> {
+                return numberOfRetries < 5
+                        ? MD5SumCheckUnequalsCallbackReaction.RETRY
+                        : MD5SumCheckUnequalsCallbackReaction.CANCEL;
             });
         if(!notCanceled) {
             LOGGER.debug(String.format("install prerequisiste download for %s canceled",
