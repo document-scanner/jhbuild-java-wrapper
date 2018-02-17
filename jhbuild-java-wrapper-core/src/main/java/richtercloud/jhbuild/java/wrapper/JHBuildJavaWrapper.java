@@ -15,7 +15,6 @@
 package richtercloud.jhbuild.java.wrapper;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallbackReation;
-import richtercloud.jhbuild.java.wrapper.download.DownloadTools;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
 /**
@@ -80,27 +78,6 @@ public class JHBuildJavaWrapper {
     public final static String MAKE_DEFAULT = "make";
     public final static String PYTHON_DEFAULT = "python";
     public final static String CC_DEFAULT = "gcc";
-    private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
-            "git-2.13.3.tar.gz",
-            ExtractionMode.EXTRACTION_MODE_TAR_GZ,
-            "git-2.13.3",
-            "d2dc550f6693ba7e5b16212b2714f59f");
-    private final static DownloadCombi GIT_DOWNLOAD_COMBI_LINUX_64_DEFAULT = GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT;
-    private final static DownloadCombi GIT_DOWNLOAD_COMBI_WINDOWS_32_DEFAULT = new DownloadCombi("https://github.com/git-for-windows/git/releases/download/v2.13.3.windows.1/PortableGit-2.13.3-32-bit.7z.exe",
-            "PortableGit-2.13.3-32-bit.7z.exe",
-            ExtractionMode.EXTRACTION_MODE_NONE,
-            null,
-            "72908af3e98c1ec631113da9d38a6875");
-    private final static DownloadCombi GIT_DOWNLOAD_COMBI_WINDOWS_64_DEFAULT = new DownloadCombi("https://github.com/git-for-windows/git/releases/download/v2.13.3.windows.1/PortableGit-2.13.3-64-bit.7z.exe",
-            "PortableGit-2.13.3-64-bit.7z.exe",
-            ExtractionMode.EXTRACTION_MODE_NONE,
-            null,
-            "24c9f5482e419174e3b4a53e759ebb96");
-    private final static DownloadCombi GIT_DOWNLOAD_COMBI_MAC_OSX_DEFAULT = new DownloadCombi("https://github.com/git-for-windows/git/releases/download/v2.13.3.windows.1/PortableGit-2.13.3-32-bit.7z.exe",
-            "PortableGit-2.13.3-32-bit.7z.exe",
-            ExtractionMode.EXTRACTION_MODE_NONE,
-            null,
-            "72908af3e98c1ec631113da9d38a6875");
     public final static File CONFIG_DIR = new File(SystemUtils.getUserHome(),
             ".jhbuild-java-wrapper");
     public final static File INSTALLATION_PREFIX_DIR_DEFAULT = new File(CONFIG_DIR,
@@ -147,20 +124,6 @@ public class JHBuildJavaWrapper {
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
     private final ActionOnMissingBinary actionOnMissingPython;
-    /**
-     * Mapping between supported OS and the {@link DownloadCombi} for
-     * {@code git}.
-     */
-    /*
-    internal implementation notes:
-    - @TODO: allow passing custom mapping
-    */
-    private final Map<SupportedOS, DownloadCombi> oSDownloadCombiGitMap = new ImmutableMap.Builder<SupportedOS, DownloadCombi>()
-            .put(SupportedOS.LINUX_32, GIT_DOWNLOAD_COMBI_LINUX_32_DEFAULT)
-            .put(SupportedOS.LINUX_64, GIT_DOWNLOAD_COMBI_LINUX_64_DEFAULT)
-            .put(SupportedOS.WINDOWS_32, GIT_DOWNLOAD_COMBI_WINDOWS_32_DEFAULT)
-            .put(SupportedOS.WINDOWS_64, GIT_DOWNLOAD_COMBI_WINDOWS_64_DEFAULT)
-            .put(SupportedOS.MAC_OSX_64, GIT_DOWNLOAD_COMBI_MAC_OSX_DEFAULT).build();
     private final boolean skipMD5SumCheck;
     private final File installationPrefixDir;
     private final File downloadDir;
@@ -507,8 +470,11 @@ public class JHBuildJavaWrapper {
                     throw new IllegalStateException(String.format("git binary '%s' doesn't exist and can't be found in PATH",
                             git));
                 case DOWNLOAD:
-                    SupportedOS currentOS = DownloadTools.getCurrentOS();
-                    DownloadCombi gitDownloadCombi = oSDownloadCombiGitMap.get(currentOS);
+                    DownloadCombi gitDownloadCombi = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
+                            "git-2.13.3.tar.gz",
+                            ExtractionMode.EXTRACTION_MODE_TAR_GZ,
+                            "git-2.13.3",
+                            "d2dc550f6693ba7e5b16212b2714f59f");
                     git = installPrerequisiteAutotools(installationPrefixPath,
                             "git",
                             "git",
