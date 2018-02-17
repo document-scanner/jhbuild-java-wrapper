@@ -406,36 +406,7 @@ public class JHBuildJavaWrapper {
             throw new IllegalStateException(String.format("cc (C compiler) binary '%s' doesn't exist and can't be found in PATH",
                             cc));
         }
-        try {
-            BinaryTools.validateBinary(git,
-                    "git",
-                    installationPrefixPath);
-        }catch(BinaryValidationException ex) {
-            switch(actionOnMissingGit) {
-                case FAIL:
-                    throw new IllegalStateException(String.format("git binary '%s' doesn't exist and can't be found in PATH",
-                            git));
-                case DOWNLOAD:
-                    SupportedOS currentOS = DownloadTools.getCurrentOS();
-                    DownloadCombi gitDownloadCombi = oSDownloadCombiGitMap.get(currentOS);
-                    git = installPrerequisiteAutotools(installationPrefixPath,
-                            "git",
-                            "git",
-                            gitDownloadCombi);
-                    if(git == null) {
-                        //interactive download has been canceled
-                        return false;
-                    }
-                    try {
-                        BinaryTools.validateBinary(git,
-                                "git",
-                                installationPrefixPath);
-                    } catch (BinaryValidationException ex1) {
-                        assert false: "git exisistence check or installation failed";
-                    }
-            }
-        }
-        //zlib is a prerequisite of python build
+        //zlib is a prerequisite of git and python build
         boolean zlibPresent = checkLibPresence(installationPrefixDir,
                 "zlib.pc");
         if(zlibPresent) {
@@ -523,6 +494,35 @@ public class JHBuildJavaWrapper {
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
                         assert false: "python exisistence check or installation failed";
+                    }
+            }
+        }
+        try {
+            BinaryTools.validateBinary(git,
+                    "git",
+                    installationPrefixPath);
+        }catch(BinaryValidationException ex) {
+            switch(actionOnMissingGit) {
+                case FAIL:
+                    throw new IllegalStateException(String.format("git binary '%s' doesn't exist and can't be found in PATH",
+                            git));
+                case DOWNLOAD:
+                    SupportedOS currentOS = DownloadTools.getCurrentOS();
+                    DownloadCombi gitDownloadCombi = oSDownloadCombiGitMap.get(currentOS);
+                    git = installPrerequisiteAutotools(installationPrefixPath,
+                            "git",
+                            "git",
+                            gitDownloadCombi);
+                    if(git == null) {
+                        //interactive download has been canceled
+                        return false;
+                    }
+                    try {
+                        BinaryTools.validateBinary(git,
+                                "git",
+                                installationPrefixPath);
+                    } catch (BinaryValidationException ex1) {
+                        assert false: "git exisistence check or installation failed";
                     }
             }
         }
