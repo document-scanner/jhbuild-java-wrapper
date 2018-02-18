@@ -81,8 +81,27 @@ public class AutoDownloader implements Downloader {
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
             ExtractionException {
+        if(downloadCombi == null) {
+            throw new IllegalArgumentException("downloadCombi mustn't be null");
+        }
+        if(downloadCombi.getDownloadURL() == null
+                || downloadCombi.getDownloadTarget() == null
+                || downloadCombi.getExtractionMode() == null
+                || downloadCombi.getExtractionLocation() == null
+                || downloadCombi.getMd5Sum() == null) {
+            throw new IllegalArgumentException(String.format("downloadURL, "
+                    + "downloadTarget, extractionMode, extractionLocation and "
+                    + "md5sum of downloadCombi need to be not null (were %s, "
+                    + "%s, %s, %s and %s",
+                    downloadCombi.getDownloadURL(),
+                    downloadCombi.getDownloadTarget(),
+                    downloadCombi.getExtractionMode(),
+                    downloadCombi.getExtractionLocation(),
+                    downloadCombi.getMd5Sum()));
+        }
         DownloadCombi downloadCombi0 = downloadCombi;
         boolean success = false;
+        int numberOfRetries = 0;
         while(!success) {
             try {
                 boolean notCanceled = download(downloadCombi0,
@@ -95,7 +114,17 @@ public class AutoDownloader implements Downloader {
                 success = true;
             }catch (IOException | ExtractionException ex) {
                 downloadCombi0 = handleDownloadException(ex,
+                        downloadCombi0,
+                        numberOfRetries,
                         downloadFailureCallback);
+                    //no need to duplicate assertions at the beginning of
+                    //download
+                if(downloadCombi0 == null) {
+                    //downloadFailureCallback decided that download ought to be
+                    //canceled
+                    return false;
+                }
+                numberOfRetries += 1;
             }
         }
         return true;
@@ -107,6 +136,14 @@ public class AutoDownloader implements Downloader {
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
             ExtractionException {
+        assert downloadCombi != null;
+        assert downloadCombi.getDownloadURL() != null;
+        assert downloadCombi.getDownloadTarget() != null;
+        assert downloadCombi.getExtractionMode() != null;
+        assert downloadCombi.getExtractionLocation() != null;
+        assert downloadCombi.getMd5Sum() != null;
+            //all 5 values have been checked in downloadFile with helpful
+            //feedback in case they're null
         boolean needDownload;
         if(skipMD5SumCheck) {
             needDownload = !new File(downloadCombi.getDownloadTarget()).exists();
@@ -326,7 +363,14 @@ public class AutoDownloader implements Downloader {
      * download ought to be canceled
      */
     protected DownloadCombi handleDownloadException(Exception ex,
+            DownloadCombi previousDownloadCombi,
+            int numberOfRetries,
             DownloadFailureCallback downloadFailureCallback) {
-        return null;
+        if(downloadFailureCallback.run(ex,
+                numberOfRetries) == DownloadFailureCallbackReation.CANCEL) {
+            return null;
+        }else {
+            return previousDownloadCombi;
+        }
     }
 }

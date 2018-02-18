@@ -117,8 +117,11 @@ public class GUIDownloader extends AutoDownloader {
 
     @Override
     protected DownloadCombi handleDownloadException(Exception ex,
+            DownloadCombi previousDownloadCombi,
+            int numberOfRetries,
             DownloadFailureCallback downloadFailureCallback) {
-        DownloadFailureCallbackReation reaction = downloadFailureCallback.run(ex);
+        DownloadFailureCallbackReation reaction = downloadFailureCallback.run(ex,
+                numberOfRetries);
         if(reaction == DownloadFailureCallbackReation.CANCEL) {
             return null;
         }

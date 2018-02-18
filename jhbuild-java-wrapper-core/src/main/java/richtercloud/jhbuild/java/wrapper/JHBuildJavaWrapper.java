@@ -857,8 +857,11 @@ public class JHBuildJavaWrapper {
             DownloadCombi downloadCombi) throws IOException, OSNotRecognizedException, ArchitectureNotRecognizedException, ExtractionException, MissingSystemBinary, InterruptedException, BuildFailureException {
         boolean notCanceled = downloader.downloadFile(downloadCombi,
                 skipMD5SumCheck,
-            ex1 -> {
-                return DownloadFailureCallbackReation.RETRY;
+            (ex1,
+                    numberOfRetries) -> {
+                return numberOfRetries < 5
+                        ? DownloadFailureCallbackReation.RETRY
+                        : DownloadFailureCallbackReation.CANCEL;
             },
             (String md5SumExpected,
                     String md5SumActual,

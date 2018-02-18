@@ -20,5 +20,6 @@ package richtercloud.jhbuild.java.wrapper.download;
  */
 public interface DownloadFailureCallback {
 
-    DownloadFailureCallbackReation run(Exception ex);
+    DownloadFailureCallbackReation run(Exception ex,
+            int numberOfRetries);
 }
