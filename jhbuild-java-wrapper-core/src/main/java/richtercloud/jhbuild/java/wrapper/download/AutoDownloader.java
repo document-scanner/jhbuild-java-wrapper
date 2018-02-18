@@ -71,6 +71,9 @@ public class AutoDownloader implements Downloader {
      * canceled, otherwise {@code true}, but exception might have been thrown
      * @throws IOException
      * @throws ExtractionException
+     * @throws IllegalArgumentException if the extraction directory specified in
+     * {@code downloadCombi} is an existing path which doesn't point to a
+     * directory
      */
     @Override
     public boolean downloadFile(DownloadCombi downloadCombi,
@@ -186,6 +189,12 @@ public class AutoDownloader implements Downloader {
             return true;
         }
         File extractionDir = new File(downloadCombi.getExtractionLocation());
+        if(extractionDir.exists() && !extractionDir.isDirectory()) {
+            throw new IllegalArgumentException(String.format("extraction "
+                    + "directory '%s' is an existing path which doesn't point "
+                    + "to a directory",
+                    extractionDir.getAbsolutePath()));
+        }
         if(!extractionDir.exists() || (extractionDir.exists() && extractionDir.list().length == 0)) {
             FileInputStream fileInputStream = new FileInputStream(downloadCombi.getDownloadTarget());
             if(null == downloadCombi.getExtractionMode()) {
