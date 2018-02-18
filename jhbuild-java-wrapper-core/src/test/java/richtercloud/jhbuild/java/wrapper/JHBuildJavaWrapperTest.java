@@ -262,8 +262,12 @@ public class JHBuildJavaWrapperTest {
     private JHBuildJavaWrapper generateDefaultTestInstance() throws IOException {
         File installationPrefixDir = Files.createTempDirectory("jhbuild-java-wrapper-test-prefix" //prefix
                 ).toFile();
+        LOGGER.debug(String.format("installationPrefixDir: %s",
+                installationPrefixDir.getAbsolutePath()));
         File downloadDir = Files.createTempDirectory("jhbuild-java-wrapper-test-download" //prefix
                 ).toFile();
+        LOGGER.debug(String.format("downloadDir: %s",
+                downloadDir.getAbsolutePath()));
         JHBuildJavaWrapper retValue = generateDefaultTestInstance(installationPrefixDir,
                 downloadDir);
         return retValue;
