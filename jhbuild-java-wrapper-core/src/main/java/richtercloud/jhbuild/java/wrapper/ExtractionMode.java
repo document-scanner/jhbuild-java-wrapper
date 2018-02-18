@@ -20,6 +20,7 @@ package richtercloud.jhbuild.java.wrapper;
  */
 public enum ExtractionMode {
     EXTRACTION_MODE_TAR_GZ(".tar.gz"),
+    EXTRACTION_MODE_TAR_XZ(".tar.xz"),
     EXTRACTION_MODE_ZIP(".zip"),
     EXTRACTION_MODE_NONE("none");
 
