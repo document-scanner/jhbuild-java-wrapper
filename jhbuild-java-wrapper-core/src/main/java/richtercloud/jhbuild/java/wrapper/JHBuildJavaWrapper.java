@@ -346,8 +346,6 @@ public class JHBuildJavaWrapper {
      * @param installationPrefixPath
      * @return {@code false} if the download or any build step has been
      * canceled, {@code true} otherwise
-     * @throws OSNotRecognizedException
-     * @throws ArchitectureNotRecognizedException
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
@@ -355,9 +353,7 @@ public class JHBuildJavaWrapper {
      * @throws BuildFailureException
      * @throws InitCanceledException
      */
-    private boolean init(String installationPrefixPath) throws OSNotRecognizedException,
-            ArchitectureNotRecognizedException,
-            IOException,
+    private boolean init(String installationPrefixPath) throws IOException,
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
@@ -646,7 +642,9 @@ public class JHBuildJavaWrapper {
 
     private void handleBuilderFailure(String moduleName,
             BuildStep buildFailureStep,
-            Process failedBuildProcess) throws BuildFailureException, IOException, InterruptedException {
+            Process failedBuildProcess) throws BuildFailureException,
+            IOException,
+            InterruptedException {
         String stdout = null;
         String stderr = null;
         if(silenceStdout) {
@@ -696,17 +694,13 @@ public class JHBuildJavaWrapper {
      * {@link #cancelInstallModuleset() }.
      *
      * @param moduleName the module to build
-     * @throws OSNotRecognizedException
-     * @throws ArchitectureNotRecognizedException
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
      * @throws MissingSystemBinary
      * @throws BuildFailureException
      */
-    public boolean installModuleset(String moduleName) throws OSNotRecognizedException,
-            ArchitectureNotRecognizedException,
-            IOException,
+    public boolean installModuleset(String moduleName) throws IOException,
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
@@ -728,8 +722,6 @@ public class JHBuildJavaWrapper {
      *
      * @param modulesetInputStream
      * @param moduleName
-     * @throws OSNotRecognizedException
-     * @throws ArchitectureNotRecognizedException
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
@@ -745,9 +737,7 @@ public class JHBuildJavaWrapper {
     Class.getResourceAsStream since those might be null
     */
     public boolean installModuleset(InputStream modulesetInputStream,
-            String moduleName) throws OSNotRecognizedException,
-            ArchitectureNotRecognizedException,
-            IOException,
+            String moduleName) throws IOException,
             ExtractionException,
             InterruptedException,
             MissingSystemBinary,
@@ -844,8 +834,6 @@ public class JHBuildJavaWrapper {
      * binary has been installed, but the installation hasn't been canceled or
      * {@code null} if the installation or any part of it has been aborted
      * @throws IOException
-     * @throws OSNotRecognizedException
-     * @throws ArchitectureNotRecognizedException
      * @throws ExtractionException
      * @throws MissingSystemBinary
      * @throws InterruptedException
@@ -854,7 +842,11 @@ public class JHBuildJavaWrapper {
     private String installPrerequisiteAutotools(String installationPrefixPath,
             String binary,
             String binaryDescription,
-            DownloadCombi downloadCombi) throws IOException, OSNotRecognizedException, ArchitectureNotRecognizedException, ExtractionException, MissingSystemBinary, InterruptedException, BuildFailureException {
+            DownloadCombi downloadCombi) throws IOException,
+            ExtractionException,
+            MissingSystemBinary,
+            InterruptedException,
+            BuildFailureException {
         boolean notCanceled = downloader.downloadFile(downloadCombi,
                 skipMD5SumCheck,
             (ex1,
