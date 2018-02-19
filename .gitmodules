@@ -1,3 +1,6 @@
 [submodule "checkstyle-config"]
 	path = checkstyle-config
 	url = https://gitlab.com/krichter/checkstyle-config-gplv3.git
+[submodule "jhbuild-java-wrapper-core/checkstyle-config"]
+	path = jhbuild-java-wrapper-core/checkstyle-config
+	url = https://gitlab.com/krichter/checkstyle-config-gplv3.git
