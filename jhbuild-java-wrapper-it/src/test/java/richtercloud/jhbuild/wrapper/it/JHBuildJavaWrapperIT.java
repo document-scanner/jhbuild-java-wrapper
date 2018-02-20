@@ -65,6 +65,7 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
+                ActionOnMissingBinary.DOWNLOAD,
                 downloader, //downloader
                 false, //skipMD5SumCheck
                 true, //silenceStdout (saves log capacity on Travis CI service
@@ -79,6 +80,7 @@ public class JHBuildJavaWrapperIT {
         //omitted parameter causing fallback to default moduleset
         jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
                 downloadDir,
+                ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
