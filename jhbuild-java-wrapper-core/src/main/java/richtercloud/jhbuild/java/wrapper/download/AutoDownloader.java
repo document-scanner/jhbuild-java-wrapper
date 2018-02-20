@@ -52,22 +52,18 @@ public class AutoDownloader implements Downloader {
     /**
      * Downloads a file a file located at {@code donwloadURL}, compares its MD5
      * checksum with {@code md5Sum} and extracts it into
-     * {@code extractionLocation}. If the download or the verification failed
-     * the caller can take actions in {@code mD5SumCheckUnequalsCallback} and
-     * {@code downloadFailureCallback} callbacks.
+     * {@code extractionLocation}.If the download or the verification failed
+ the caller can take actions in {@code mD5SumCheckUnequalsCallback} and
+    {@code downloadFailureCallback} callbacks.
      *
-     * @param downloadURL
-     * @param downloadTarget
-     * @param extractionMode
-     * @param extractionLocation
-     * @param md5Sum
-     * @param downloadDialogParent
-     * @param downloadDialogTitle
-     * @param downloadDialogLabelText
-     * @param downloadDialogProgressBarText
-     * @param skipMD5SumCheck
-     * @param downloadFailureCallback
-     * @param mD5SumCheckUnequalsCallback
+     * @param downloadCombi the download combi containing all relevant
+     * information for the download and the extraction
+     * @param skipMD5SumCheck a flag indicating that the MD5 checksum check
+     * should be skipped
+     * @param downloadFailureCallback the download failure callback to retrieve
+     * the {@link DownloadFailureCallbackReation}
+     * @param mD5SumCheckUnequalsCallback the MD5 checksum check failure
+     * callback to retrieve the {@link MD5SumCheckUnequalsCallbackReaction}
      * @return {@code false} if the validation, download or extraction have been
      * canceled, otherwise {@code true}, but exception might have been thrown
      * @throws IOException
@@ -357,12 +353,17 @@ public class AutoDownloader implements Downloader {
 
     /**
      * Possibility for subclasses to retrieve data for a new
-     * {@link DownloadCombi} (from the user, from a website, etc.).
+     * {@link DownloadCombi} (from the user, from a website, etc.).This implementation always returns {@code null}.
      *
-     * This implementation always returns {@code null}.
      *
-     * @param ex
-     * @param downloadFailureCallback
+     * @param ex a reference to the exception which caused the failure
+     * @param previousDownloadCombi a reference to the previous download combi
+     * so that it can eventually be returned to indicate that download ought to
+     * be retried
+     * @param numberOfRetries the number of retries of the download after
+     * previous failures
+     * @param downloadFailureCallback a download failure callback to retrieve
+     * the {@link DownloadFailureCallbackReation}
      * @return a new or the same {@link DownloadCombi} or {@code null} if the
      * download ought to be canceled
      */
