@@ -27,7 +27,11 @@ public class DownloadCombi {
     private final String extractionLocation;
     private final String md5Sum;
 
-    public DownloadCombi(String downloadURL, String downloadTarget, ExtractionMode extractionMode, String extractionLocation, String md5Sum) {
+    public DownloadCombi(String downloadURL,
+            String downloadTarget,
+            ExtractionMode extractionMode,
+            String extractionLocation,
+            String md5Sum) {
         this.downloadURL = downloadURL;
         this.downloadTarget = downloadTarget;
         this.extractionMode = extractionMode;
