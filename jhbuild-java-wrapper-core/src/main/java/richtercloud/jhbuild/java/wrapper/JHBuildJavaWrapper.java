@@ -349,15 +349,16 @@ public class JHBuildJavaWrapper {
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
-     * @throws MissingSystemBinary
+     * @throws MissingSystemBinaryException
      * @throws BuildFailureException
      * @throws InitCanceledException
      */
     private boolean init(String installationPrefixPath) throws IOException,
             ExtractionException,
             InterruptedException,
-            MissingSystemBinary,
-            BuildFailureException {
+            MissingSystemBinaryException,
+            BuildFailureException,
+            MissingSystemBinaryException {
         if(inited) {
             LOGGER.debug("already inited");
             return true;
@@ -371,12 +372,12 @@ public class JHBuildJavaWrapper {
             BinaryTools.validateBinary(cc,
                     "cc",
                     installationPrefixPath);
-        }catch(BinaryValidationException gccBinaryValidationException) {
+        }catch(BinaryValidationException ex) {
             //there's no sense in providing options/MissingBiaryAction since
             //building GCC from source without a working C compiler is between
             //troublesome and impossible
-            throw new IllegalStateException(String.format("cc (C compiler) binary '%s' doesn't exist and can't be found in PATH",
-                            cc));
+            throw new MissingSystemBinaryException("cc",
+                    ex);
         }
         //zlib is a prerequisite of git and python build
         boolean zlibPresent = checkLibPresence(installationPrefixDir,
@@ -697,13 +698,13 @@ public class JHBuildJavaWrapper {
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
-     * @throws MissingSystemBinary
+     * @throws MissingSystemBinaryException
      * @throws BuildFailureException
      */
     public boolean installModuleset(String moduleName) throws IOException,
             ExtractionException,
             InterruptedException,
-            MissingSystemBinary,
+            MissingSystemBinaryException,
             BuildFailureException,
             ModuleBuildFailureException {
         InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
@@ -715,17 +716,16 @@ public class JHBuildJavaWrapper {
 
     /**
      * Installs module {@code moduleName} from JHBuild moduleset provided by
-     * {@code modulesetInputStream}.
+     * {@code modulesetInputStream}.The module installation can be canceled from another thread with
+    {@link #cancelInstallModuleset()}.
      *
-     * The module installation can be canceled from another thread with
-     * {@link #cancelInstallModuleset() }.
      *
      * @param modulesetInputStream
      * @param moduleName
      * @throws IOException
      * @throws ExtractionException
      * @throws InterruptedException
-     * @throws MissingSystemBinary
+     * @throws MissingSystemBinaryException
      * @throws BuildFailureException
      * @throws IllegalArgumentException if {@code modulesetInputStream} is
      * {@code null}
@@ -740,7 +740,7 @@ public class JHBuildJavaWrapper {
             String moduleName) throws IOException,
             ExtractionException,
             InterruptedException,
-            MissingSystemBinary,
+            MissingSystemBinaryException,
             BuildFailureException,
             ModuleBuildFailureException {
         canceled = false;
@@ -835,7 +835,7 @@ public class JHBuildJavaWrapper {
      * {@code null} if the installation or any part of it has been aborted
      * @throws IOException
      * @throws ExtractionException
-     * @throws MissingSystemBinary
+     * @throws MissingSystemBinaryException
      * @throws InterruptedException
      * @throws BuildFailureException
      */
@@ -844,7 +844,7 @@ public class JHBuildJavaWrapper {
             String binaryDescription,
             DownloadCombi downloadCombi) throws IOException,
             ExtractionException,
-            MissingSystemBinary,
+            MissingSystemBinaryException,
             InterruptedException,
             BuildFailureException {
         boolean notCanceled = downloader.downloadFile(downloadCombi,
@@ -874,7 +874,7 @@ public class JHBuildJavaWrapper {
                     "make",
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
-            throw new MissingSystemBinary("make",
+            throw new MissingSystemBinaryException("make",
                     ex1);
         }
         //build

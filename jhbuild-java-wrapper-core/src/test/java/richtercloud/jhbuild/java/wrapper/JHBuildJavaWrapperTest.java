@@ -184,8 +184,8 @@ public class JHBuildJavaWrapperTest {
         String moduleName = "postgresql-9.6.3";
         try {
             instance.installModuleset(moduleName);
-            fail("expected IllegalStateException for inexisting C compiler");
-        }catch(IllegalStateException expected) {
+            fail("expected MissingSystemBinaryException for inexisting C compiler");
+        }catch(MissingSystemBinaryException expected) {
         }
     }
 
@@ -203,7 +203,7 @@ public class JHBuildJavaWrapperTest {
         try {
             instance.installModuleset(moduleName);
             fail("expected MissingSystemBinary for inexisting make");
-        }catch(MissingSystemBinary expected) {
+        }catch(MissingSystemBinaryException expected) {
         }
     }
 

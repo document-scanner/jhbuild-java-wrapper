@@ -18,10 +18,10 @@ package richtercloud.jhbuild.java.wrapper;
  *
  * @author richter
  */
-public class MissingSystemBinary extends Exception {
+public class MissingSystemBinaryException extends Exception {
     private static final long serialVersionUID = 1L;
 
-    public MissingSystemBinary(String binaryName,
+    public MissingSystemBinaryException(String binaryName,
             Exception cause) {
         super(String.format("The important binary %s is missing on your system. JHBuild wrapper isn't capable of installing it automatically, so you have to install it yourself",
                 binaryName),

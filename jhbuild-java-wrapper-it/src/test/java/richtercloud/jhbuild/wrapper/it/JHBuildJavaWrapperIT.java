@@ -26,7 +26,7 @@ import richtercloud.jhbuild.java.wrapper.ArchitectureNotRecognizedException;
 import richtercloud.jhbuild.java.wrapper.BuildFailureException;
 import richtercloud.jhbuild.java.wrapper.ExtractionException;
 import richtercloud.jhbuild.java.wrapper.JHBuildJavaWrapper;
-import richtercloud.jhbuild.java.wrapper.MissingSystemBinary;
+import richtercloud.jhbuild.java.wrapper.MissingSystemBinaryException;
 import richtercloud.jhbuild.java.wrapper.ModuleBuildFailureException;
 import richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
 import richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
@@ -45,7 +45,7 @@ public class JHBuildJavaWrapperIT {
             ArchitectureNotRecognizedException,
             ExtractionException,
             InterruptedException,
-            MissingSystemBinary,
+            MissingSystemBinaryException,
             BuildFailureException,
             ModuleBuildFailureException {
         File installationPrefixDir = Files.createTempDirectory(String.format("%s-prefix",
