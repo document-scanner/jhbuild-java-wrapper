@@ -25,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.io.FileUtils;
@@ -79,6 +81,8 @@ public class JHBuildJavaWrapper {
     public final static String MAKE_DEFAULT = "make";
     public final static String PYTHON_DEFAULT = "python";
     public final static String CC_DEFAULT = "gcc";
+    public final static String PATCH_DEFAULT = "patch";
+    public final static String AUTOCONF_DEFAULT = "autoconf";
     public final static File CONFIG_DIR = new File(SystemUtils.getUserHome(),
             ".jhbuild-java-wrapper");
     public final static File INSTALLATION_PREFIX_DIR_DEFAULT = new File(CONFIG_DIR,
@@ -120,12 +124,15 @@ public class JHBuildJavaWrapper {
      * {@link #actionOnMissingPython} is {@link ActionOnMissingBinary#DOWNLOAD}.
      */
     private final String cc;
+    private String patch;
+    private String autoconf = AUTOCONF_DEFAULT;
     private final ActionOnMissingBinary actionOnMissingGit;
     private final ActionOnMissingBinary actionOnMissingZlib;
     private final ActionOnMissingBinary actionOnMissingLibffi;
     private final ActionOnMissingBinary actionOnMissingJHBuild;
         //Mac OSX download is a .dmg download which can't be extracted locally
     private final ActionOnMissingBinary actionOnMissingPython;
+    private final ActionOnMissingBinary actionOnMissingAutoconf;
     private final boolean skipMD5SumCheck;
     private final File installationPrefixDir;
     private final File downloadDir;
@@ -160,6 +167,7 @@ public class JHBuildJavaWrapper {
             ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
+            ActionOnMissingBinary actionOnMissingAutoconf,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -171,6 +179,7 @@ public class JHBuildJavaWrapper {
                 actionOnMissingLibffi,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
+                actionOnMissingAutoconf,
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
@@ -184,6 +193,7 @@ public class JHBuildJavaWrapper {
             ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
+            ActionOnMissingBinary actionOnMissingAutoconf,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -196,6 +206,8 @@ public class JHBuildJavaWrapper {
                 MAKE_DEFAULT,
                 PYTHON_DEFAULT,
                 CC_DEFAULT,
+                PATCH_DEFAULT,
+                AUTOCONF_DEFAULT,
                 downloader,
                 skipMD5SumCheck,
                 silenceStdout,
@@ -205,6 +217,7 @@ public class JHBuildJavaWrapper {
                 actionOnMissingLibffi,
                 actionOnMissingJHBuild,
                 actionOnMissingPython,
+                actionOnMissingAutoconf,
                 calculateParallelism());
     }
 
@@ -216,6 +229,8 @@ public class JHBuildJavaWrapper {
             String make,
             String python,
             String cc,
+            String patch,
+            String autoconf,
             Downloader downloader,
             boolean skipMD5SumCheck,
             boolean silenceStdout,
@@ -225,6 +240,7 @@ public class JHBuildJavaWrapper {
             ActionOnMissingBinary actionOnMissingLibffi,
             ActionOnMissingBinary actionOnMissingJHBuild,
             ActionOnMissingBinary actionOnMissingPython,
+            ActionOnMissingBinary actionOnMissingAutoconf,
             int parallelism) throws IOException {
         if(installationPrefixDir.exists() && !installationPrefixDir.isDirectory()) {
             throw new IllegalArgumentException("installationPrefixDir points "
@@ -244,6 +260,8 @@ public class JHBuildJavaWrapper {
         this.make = make;
         this.python = python;
         this.cc = cc;
+        this.patch = patch;
+        this.autoconf = autoconf;
         if(downloader == null) {
             throw new IllegalArgumentException("downloader mustn't be null");
         }
@@ -253,6 +271,7 @@ public class JHBuildJavaWrapper {
         this.actionOnMissingLibffi = actionOnMissingLibffi;
         this.actionOnMissingJHBuild = actionOnMissingJHBuild;
         this.actionOnMissingPython = actionOnMissingPython;
+        this.actionOnMissingAutoconf = actionOnMissingAutoconf;
         this.skipMD5SumCheck = skipMD5SumCheck;
         this.silenceStdout = silenceStdout;
         this.silenceStderr = silenceStderr;
@@ -401,7 +420,9 @@ public class JHBuildJavaWrapper {
                             "", //binary (library doesn't provide binary, see
                                 //installPrerequisiteAutotools for details)
                             "zlib",
-                            zlibDownloadCombi);
+                            zlibDownloadCombi,
+                            null //patchDownloadCombi
+                    );
                     if(zlib == null) {
                         //interactive download has been canceled
                         return false;
@@ -432,12 +453,55 @@ public class JHBuildJavaWrapper {
                             "", //binary (library doesn't provide binary, see
                                 //installPrerequisiteAutotools for details)
                             "libffi",
-                            libffiDownloadCombi);
+                            libffiDownloadCombi,
+                            null //patchDownloadCombi
+                    );
                     if(libffi == null) {
                         //interactive download has been canceled
                         return false;
                     }
                     assert "".equals(libffi);
+            }
+        }
+        //autoconf is a prerequisite of python
+        try {
+            BinaryTools.validateBinary(autoconf,
+                    "autoconf",
+                    installationPrefixPath);
+        }catch(BinaryValidationException ex1) {
+            switch(actionOnMissingAutoconf) {
+                case FAIL:
+                    throw new IllegalStateException(String.format("autoconf binary '%s' doesn't exist and can't be found in PATH",
+                            autoconf));
+                case DOWNLOAD:
+                    DownloadCombi autoconfDownloadCombi = new DownloadCombi("https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.xz",
+                            new File(downloadDir,
+                                    "autoconf-2.69.tar.xz").getAbsolutePath(),
+                            ExtractionMode.EXTRACTION_MODE_TAR_XZ,
+                            new File(downloadDir,
+                                    "autoconf-2.69").getAbsolutePath(),
+                            "50f97f4159805e374639a73e2636f22e");
+                    DownloadCombi autoconfPatchDownloadCombi = new DownloadCombi(JHBuildJavaWrapper.class.getResource("/patches/autoconf/texinfo.patch").toExternalForm(),
+                            "texinfo.patch",
+                            ExtractionMode.EXTRACTION_MODE_NONE,
+                            "texinfo.patch",
+                            "b4ce02067d82c6f18f632c5aa17be367");
+                    autoconf = installPrerequisiteAutotools(installationPrefixPath,
+                            "autoconf",
+                            "autoconf",
+                            autoconfDownloadCombi,
+                            new LinkedList<>(Arrays.asList(autoconfPatchDownloadCombi)));
+                    if(autoconf == null) {
+                        //interactive download has been canceled
+                        return false;
+                    }
+                    try {
+                        BinaryTools.validateBinary(autoconf,
+                                "autoconf",
+                                installationPrefixPath);
+                    } catch (BinaryValidationException ex2) {
+                        assert false: "autoconf exisistence check or installation failed";
+                    }
             }
         }
         //unclear why git version of Python has been used before (only increases
@@ -462,7 +526,9 @@ public class JHBuildJavaWrapper {
                     python = installPrerequisiteAutotools(installationPrefixPath,
                             "python",
                             "python",
-                            pythonDownloadCombi);
+                            pythonDownloadCombi,
+                            null //patchDownloadCombi
+                    );
                     if(python == null) {
                         //interactive download has been canceled
                         return false;
@@ -496,7 +562,9 @@ public class JHBuildJavaWrapper {
                     git = installPrerequisiteAutotools(installationPrefixPath,
                             "git",
                             "git",
-                            gitDownloadCombi);
+                            gitDownloadCombi,
+                            null //patchDownloadCombi
+                    );
                     if(git == null) {
                         //interactive download has been canceled
                         return false;
@@ -842,12 +910,13 @@ public class JHBuildJavaWrapper {
     private String installPrerequisiteAutotools(String installationPrefixPath,
             String binary,
             String binaryDescription,
-            DownloadCombi downloadCombi) throws IOException,
+            DownloadCombi downloadCombi,
+            List<DownloadCombi> patchDownloadCombis) throws IOException,
             ExtractionException,
             MissingSystemBinaryException,
             InterruptedException,
             BuildFailureException {
-        boolean notCanceled = downloader.downloadFile(downloadCombi,
+        boolean notDownloadCanceled = downloader.downloadFile(downloadCombi,
                 skipMD5SumCheck,
             (ex1,
                     numberOfRetries) -> {
@@ -862,10 +931,66 @@ public class JHBuildJavaWrapper {
                         ? MD5SumCheckUnequalsCallbackReaction.RETRY
                         : MD5SumCheckUnequalsCallbackReaction.CANCEL;
             });
-        if(!notCanceled) {
+        if(!notDownloadCanceled) {
             LOGGER.debug(String.format("install prerequisiste download for %s canceled",
                     binaryDescription));
             return null;
+        }
+        //patching
+        File extractionLocationDir = new File(downloadCombi.getExtractionLocation());
+        assert extractionLocationDir.exists();
+        if(patchDownloadCombis != null
+                && !patchDownloadCombis.isEmpty()) {
+            try {
+                BinaryTools.validateBinary(patch,
+                        "patch",
+                        installationPrefixPath);
+            }catch(BinaryValidationException ex1) {
+                throw new MissingSystemBinaryException("patch",
+                        ex1);
+            }
+            for(DownloadCombi patchDownloadCombi : patchDownloadCombis) {
+                boolean notPatchDownloadCanceled = downloader.downloadFile(patchDownloadCombi,
+                        skipMD5SumCheck,
+                    (ex1,
+                            numberOfRetries) -> {
+                        return numberOfRetries < 5
+                                ? DownloadFailureCallbackReation.RETRY
+                                : DownloadFailureCallbackReation.CANCEL;
+                    },
+                    (String md5SumExpected,
+                            String md5SumActual,
+                            int numberOfRetries) -> {
+                        return numberOfRetries < 5
+                                ? MD5SumCheckUnequalsCallbackReaction.RETRY
+                                : MD5SumCheckUnequalsCallbackReaction.CANCEL;
+                    });
+                if(!notPatchDownloadCanceled) {
+                    LOGGER.debug(String.format("install prerequisiste download for %s canceled",
+                            binaryDescription));
+                    return null;
+                }
+                assert patchDownloadCombi.getExtractionLocation() != null;
+                File patchFile = new File(patchDownloadCombi.getExtractionLocation());
+                if(!patchFile.isFile()) {
+                    throw new IllegalArgumentException(String.format("patch "
+                            + "download combi %s caused download (and eventual "
+                            + "extraction) of something which is not a file",
+                            patchDownloadCombi));
+                }
+                Process patchProcess = createProcess(extractionLocationDir,
+                        installationPrefixPath,
+                        patch, "-p1", String.format("<%s",
+                                patchFile.getAbsolutePath()));
+                patchProcess.waitFor();
+                if(patchProcess.exitValue() != 0) {
+                    throw new IllegalArgumentException(String.format("patching "
+                            + "extraction direction %s with patch file %s "
+                            + "failed",
+                            extractionLocationDir.getAbsolutePath(),
+                            patchFile.getAbsolutePath()));
+                }
+            }
         }
         //need make for building and it's overly hard to bootstrap
         //without it, so force installation out of JHBuild wrapper
@@ -878,8 +1003,6 @@ public class JHBuildJavaWrapper {
                     ex1);
         }
         //build
-        File extractionLocationDir = new File(downloadCombi.getExtractionLocation());
-        assert extractionLocationDir.exists();
         synchronized(this) {
             if(canceled) {
                 LOGGER.debug(String.format("canceling prerequisiste installation of %s because the build wrapper has been canceled",

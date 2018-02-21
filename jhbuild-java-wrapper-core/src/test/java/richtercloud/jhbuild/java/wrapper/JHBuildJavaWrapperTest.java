@@ -74,10 +74,13 @@ public class JHBuildJavaWrapperTest {
                     JHBuildJavaWrapper.MAKE_DEFAULT,
                     JHBuildJavaWrapper.PYTHON_DEFAULT,
                     JHBuildJavaWrapper.CC_DEFAULT,
+                    JHBuildJavaWrapper.PATCH_DEFAULT,
+                    JHBuildJavaWrapper.AUTOCONF_DEFAULT,
                     new AutoDownloader(),
                     false, //skipMD5SumCheck
                     true,//silenceStdout
                     true,//silenceStderr,
+                    ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
@@ -102,10 +105,13 @@ public class JHBuildJavaWrapperTest {
                     JHBuildJavaWrapper.MAKE_DEFAULT,
                     JHBuildJavaWrapper.PYTHON_DEFAULT,
                     JHBuildJavaWrapper.CC_DEFAULT,
+                    JHBuildJavaWrapper.PATCH_DEFAULT,
+                    JHBuildJavaWrapper.AUTOCONF_DEFAULT,
                     new AutoDownloader(),
                     false, //skipMD5SumCheck
                     true,//silenceStdout
                     true,//silenceStderr,
+                    ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
@@ -138,6 +144,11 @@ public class JHBuildJavaWrapperTest {
         //null and empty module name tested in testInstallModulesetInputStreamString
         JHBuildJavaWrapper instance = generateDefaultTestInstance();
         mockStatic(BinaryTools.class);
+        doThrow(new BinaryValidationException("unimportant message")).when(BinaryTools.class,
+                "validateBinary",
+                eq("autoconf"),
+                anyString(),
+                anyString());
         doThrow(new BinaryValidationException("unimportant message")).when(BinaryTools.class,
                 "validateBinary",
                 eq("git"),
@@ -227,10 +238,13 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.MAKE_DEFAULT,
                 JHBuildJavaWrapper.PYTHON_DEFAULT,
                 JHBuildJavaWrapper.CC_DEFAULT,
+                JHBuildJavaWrapper.PATCH_DEFAULT,
+                JHBuildJavaWrapper.AUTOCONF_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
                 true,//silenceStdout
                 true,//silenceStderr,
+                ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -283,10 +297,13 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.MAKE_DEFAULT,
                 JHBuildJavaWrapper.PYTHON_DEFAULT,
                 JHBuildJavaWrapper.CC_DEFAULT,
+                JHBuildJavaWrapper.PATCH_DEFAULT,
+                JHBuildJavaWrapper.AUTOCONF_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
                 true,//silenceStdout
                 true,//silenceStderr,
+                ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
