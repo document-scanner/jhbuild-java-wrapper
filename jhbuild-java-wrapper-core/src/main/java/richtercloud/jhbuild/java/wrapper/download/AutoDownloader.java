@@ -33,8 +33,9 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
-import org.apache.commons.compress.utils.IOUtils;
+import org.apache.commons.compress.utils.Charsets;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.ExtractionException;
@@ -76,7 +77,8 @@ public class AutoDownloader implements Downloader {
     public boolean downloadFile(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
-            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
+            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
+            DownloadEmptyCallback downloadEmptyCallback) throws IOException,
             ExtractionException {
         if(downloadCombi == null) {
             throw new IllegalArgumentException("downloadCombi mustn't be null");
@@ -104,7 +106,8 @@ public class AutoDownloader implements Downloader {
                 boolean notCanceled = download(downloadCombi0,
                         skipMD5SumCheck,
                         downloadFailureCallback,
-                        mD5SumCheckUnequalsCallback);
+                        mD5SumCheckUnequalsCallback,
+                        downloadEmptyCallback);
                 if(!notCanceled) {
                     return false;
                 }
@@ -131,7 +134,8 @@ public class AutoDownloader implements Downloader {
     protected boolean download(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
-            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
+            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
+            DownloadEmptyCallback downloadEmptyCallback) throws IOException,
             ExtractionException {
         assert downloadCombi != null;
         assert downloadCombi.getDownloadURL() != null;
@@ -172,7 +176,8 @@ public class AutoDownloader implements Downloader {
                 String.valueOf(needDownload)));
         if(needDownload) {
             boolean success = false;
-            int numberOfRetries = 0;
+            int numberOfRetriesMD5Sum = 0;
+            int numberOfRetriesEmpty = 0;
             while(!success) {
                 URL downloadURLURL = new URL(downloadCombi.getDownloadURL());
                 try (FileOutputStream out = new FileOutputStream(downloadCombi.getDownloadTarget());
@@ -189,6 +194,18 @@ public class AutoDownloader implements Downloader {
                             downloadCombi.getDownloadURL()));
                     return false;
                 }
+                String downloadTargetContent = IOUtils.toString(new FileInputStream(downloadCombi.getDownloadTarget()),
+                        Charsets.UTF_8);
+                if(downloadTargetContent.isEmpty()) {
+                    DownloadEmptyCallbackReation reaction = downloadEmptyCallback.run(numberOfRetriesEmpty);
+                    if(reaction == DownloadEmptyCallbackReation.CANCEL) {
+                        LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled based on predefined decision for empty download",
+                                downloadCombi.getDownloadURL()));
+                        return false;
+                    }
+                    numberOfRetriesEmpty += 1;
+                    continue;
+                }
                 if(downloadCombi.getMd5Sum().isEmpty()) {
                     success = true;
                 }else {
@@ -200,7 +217,7 @@ public class AutoDownloader implements Downloader {
                     }else {
                         MD5SumCheckUnequalsCallbackReaction reaction = mD5SumCheckUnequalsCallback.run(downloadCombi.getMd5Sum(), //expectedMD5Sum
                                 md5, //actualMD5Sum
-                                numberOfRetries //numberOfRetries
+                                numberOfRetriesMD5Sum //numberOfRetries
                         );
                         if(reaction == MD5SumCheckUnequalsCallbackReaction.CANCEL) {
                             LOGGER.debug(String.format("canceling download of %s because the downloader has been canceled based on predefined decision for md5 checksum mismatch",
@@ -209,7 +226,7 @@ public class AutoDownloader implements Downloader {
                         }
                     }
                 }
-                numberOfRetries += 1;
+                numberOfRetriesMD5Sum += 1;
             }
         }
         if(isCanceled()) {

@@ -51,6 +51,7 @@ public interface Downloader {
     boolean downloadFile(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
-            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
+            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
+            DownloadEmptyCallback downloadEmptyCallback) throws IOException,
             ExtractionException;
 }

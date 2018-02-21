@@ -37,6 +37,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
+import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallbackReation;
 import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallbackReation;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
@@ -930,6 +931,11 @@ public class JHBuildJavaWrapper {
                 return numberOfRetries < 5
                         ? MD5SumCheckUnequalsCallbackReaction.RETRY
                         : MD5SumCheckUnequalsCallbackReaction.CANCEL;
+            },
+            numberOfRetries -> {
+                return numberOfRetries < 5
+                        ? DownloadEmptyCallbackReation.RETRY
+                        : DownloadEmptyCallbackReation.CANCEL;
             });
         if(!notDownloadCanceled) {
             LOGGER.debug(String.format("install prerequisiste download for %s canceled",
@@ -964,6 +970,11 @@ public class JHBuildJavaWrapper {
                         return numberOfRetries < 5
                                 ? MD5SumCheckUnequalsCallbackReaction.RETRY
                                 : MD5SumCheckUnequalsCallbackReaction.CANCEL;
+                    },
+                    numberOfRetries -> {
+                        return numberOfRetries < 5
+                                ? DownloadEmptyCallbackReation.RETRY
+                                : DownloadEmptyCallbackReation.CANCEL;
                     });
                 if(!notPatchDownloadCanceled) {
                     LOGGER.debug(String.format("install prerequisiste download for %s canceled",

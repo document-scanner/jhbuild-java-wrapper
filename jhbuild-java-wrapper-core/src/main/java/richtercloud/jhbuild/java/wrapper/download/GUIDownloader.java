@@ -63,7 +63,8 @@ public class GUIDownloader extends AutoDownloader {
     protected boolean download(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
-            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback) throws IOException,
+            MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
+            DownloadEmptyCallback downloadEmptyCallback) throws IOException,
             ExtractionException {
         dialog = new SwingWorkerGetWaitDialog(downloadDialogParent,
                 downloadDialogTitle,
@@ -77,7 +78,8 @@ public class GUIDownloader extends AutoDownloader {
                 boolean retValue = GUIDownloader.super.download(downloadCombi,
                         skipMD5SumCheck,
                         downloadFailureCallback,
-                        mD5SumCheckUnequalsCallback);
+                        mD5SumCheckUnequalsCallback,
+                        downloadEmptyCallback);
                 return retValue;
             }
 
