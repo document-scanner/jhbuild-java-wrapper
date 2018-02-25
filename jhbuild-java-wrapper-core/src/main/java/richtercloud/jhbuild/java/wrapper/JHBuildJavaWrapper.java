@@ -926,8 +926,10 @@ public class JHBuildJavaWrapper {
                 "moduleset" //suffix
         ).toFile();
         IOUtils.copy(modulesetInputStream, new FileOutputStream(modulesetFile));
-        String jHBuildrcTemplate = String.format("prefix=\"%s\"",
-                installationPrefixDir.getAbsolutePath());
+        String jHBuildrcTemplate = String.format("prefix=\"%s\"\n"
+                + "checkoutroot = \"%s\"",
+                installationPrefixDir.getAbsolutePath(),
+                downloadDir.getAbsolutePath());
         File jHBuildrcFile = Files.createTempFile(JHBuildJavaWrapper.class.getSimpleName(), //prefix
                 "jhbuildrc" //suffix
         ).toFile();
