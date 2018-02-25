@@ -20,6 +20,11 @@ package richtercloud.jhbuild.java.wrapper.download;
  */
 @FunctionalInterface
 public interface DownloadEmptyCallback {
+    public final static DownloadEmptyCallback RETRY_5_TIMES = numberOfRetries -> {
+        return numberOfRetries < 5
+                ? DownloadEmptyCallbackReation.RETRY
+                : DownloadEmptyCallbackReation.CANCEL;
+    };
 
     DownloadEmptyCallbackReation run(int numberOfRetries);
 }

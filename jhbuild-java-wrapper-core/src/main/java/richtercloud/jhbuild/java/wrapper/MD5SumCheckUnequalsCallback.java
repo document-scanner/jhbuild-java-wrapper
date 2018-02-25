@@ -20,6 +20,13 @@ package richtercloud.jhbuild.java.wrapper;
  */
 @FunctionalInterface
 public interface MD5SumCheckUnequalsCallback {
+    public final static MD5SumCheckUnequalsCallback RETRY_5_TIMES = (String md5SumExpected,
+            String md5SumActual,
+            int numberOfRetries) -> {
+        return numberOfRetries < 5
+                ? MD5SumCheckUnequalsCallbackReaction.RETRY
+                : MD5SumCheckUnequalsCallbackReaction.CANCEL;
+    };
 
     /**
      * Allows to make a decision whether the retrieval/download ought to be

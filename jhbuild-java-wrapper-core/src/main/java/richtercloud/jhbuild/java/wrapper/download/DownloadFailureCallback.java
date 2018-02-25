@@ -19,6 +19,12 @@ package richtercloud.jhbuild.java.wrapper.download;
  * @author richter
  */
 public interface DownloadFailureCallback {
+    public final static DownloadFailureCallback RETRY_5_TIMES = (ex1,
+            numberOfRetries) -> {
+        return numberOfRetries < 5
+                ? DownloadFailureCallbackReation.RETRY
+                : DownloadFailureCallbackReation.CANCEL;
+    };
 
     DownloadFailureCallbackReation run(Exception ex,
             int numberOfRetries);

@@ -37,8 +37,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
-import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallbackReation;
-import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallbackReation;
+import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
+import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallback;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
 /**
@@ -919,24 +919,9 @@ public class JHBuildJavaWrapper {
             BuildFailureException {
         boolean notDownloadCanceled = downloader.downloadFile(downloadCombi,
                 skipMD5SumCheck,
-            (ex1,
-                    numberOfRetries) -> {
-                return numberOfRetries < 5
-                        ? DownloadFailureCallbackReation.RETRY
-                        : DownloadFailureCallbackReation.CANCEL;
-            },
-            (String md5SumExpected,
-                    String md5SumActual,
-                    int numberOfRetries) -> {
-                return numberOfRetries < 5
-                        ? MD5SumCheckUnequalsCallbackReaction.RETRY
-                        : MD5SumCheckUnequalsCallbackReaction.CANCEL;
-            },
-            numberOfRetries -> {
-                return numberOfRetries < 5
-                        ? DownloadEmptyCallbackReation.RETRY
-                        : DownloadEmptyCallbackReation.CANCEL;
-            });
+                DownloadFailureCallback.RETRY_5_TIMES,
+                MD5SumCheckUnequalsCallback.RETRY_5_TIMES,
+                DownloadEmptyCallback.RETRY_5_TIMES);
         if(!notDownloadCanceled) {
             LOGGER.debug(String.format("install prerequisiste download for %s canceled",
                     binaryDescription));
@@ -958,24 +943,9 @@ public class JHBuildJavaWrapper {
             for(DownloadCombi patchDownloadCombi : patchDownloadCombis) {
                 boolean notPatchDownloadCanceled = downloader.downloadFile(patchDownloadCombi,
                         skipMD5SumCheck,
-                    (ex1,
-                            numberOfRetries) -> {
-                        return numberOfRetries < 5
-                                ? DownloadFailureCallbackReation.RETRY
-                                : DownloadFailureCallbackReation.CANCEL;
-                    },
-                    (String md5SumExpected,
-                            String md5SumActual,
-                            int numberOfRetries) -> {
-                        return numberOfRetries < 5
-                                ? MD5SumCheckUnequalsCallbackReaction.RETRY
-                                : MD5SumCheckUnequalsCallbackReaction.CANCEL;
-                    },
-                    numberOfRetries -> {
-                        return numberOfRetries < 5
-                                ? DownloadEmptyCallbackReation.RETRY
-                                : DownloadEmptyCallbackReation.CANCEL;
-                    });
+                        DownloadFailureCallback.RETRY_5_TIMES,
+                        MD5SumCheckUnequalsCallback.RETRY_5_TIMES,
+                        DownloadEmptyCallback.RETRY_5_TIMES);
                 if(!notPatchDownloadCanceled) {
                     LOGGER.debug(String.format("install prerequisiste download for %s canceled",
                             binaryDescription));
