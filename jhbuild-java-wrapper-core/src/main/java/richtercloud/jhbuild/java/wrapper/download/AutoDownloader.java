@@ -34,7 +34,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.utils.Charsets;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -276,18 +275,14 @@ public class AutoDownloader implements Downloader {
                                 if (!outputFile.exists()) {
                                     LOGGER.trace(String.format("Attempting to create output directory %s.",
                                             outputFile.getAbsolutePath()));
-                                    if (!outputFile.mkdirs()) {
-                                        throw new IllegalStateException(String.format("Couldn't create directory %s.", outputFile.getAbsolutePath()));
-                                    }
+                                    Files.createDirectories(outputFile.toPath());
                                 }
                             } else {
                                 LOGGER.trace(String.format("Creating output file %s.",
                                         outputFile.getAbsolutePath()));
                                 final File outputFileParent = outputFile.getParentFile();
                                 if (!outputFileParent.exists()) {
-                                    if(!outputFileParent.mkdirs()) {
-                                        throw new IOException(String.format("Couldn't create directory %s.", outputFileParent.getAbsolutePath()));
-                                    }
+                                    Files.createDirectories(outputFileParent.toPath());
                                 }
                                 try (OutputStream outputFileStream = new FileOutputStream(outputFile)) {
                                     IOUtils.copy(tarArchiveInputStream, outputFileStream);
@@ -316,7 +311,7 @@ public class AutoDownloader implements Downloader {
                         }
                     }
                 }else if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_ZIP) {
-                    FileUtils.forceMkdir(extractionDir);
+                    Files.createDirectories(extractionDir.toPath());
                     LOGGER.debug(String.format("extracting .zip archive into '%s'",
                             extractionDir));
                     try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(downloadCombi.getDownloadTarget()))) {
@@ -326,7 +321,7 @@ public class AutoDownloader implements Downloader {
                             String filePath = extractionDir.getParent() + File.separator + entry.getName();
                             File fileParent = new File(filePath).getParentFile();
                             if(!fileParent.exists()) {
-                                FileUtils.forceMkdir(fileParent);
+                                Files.createDirectories(fileParent.toPath());
                             }
                             if (!entry.isDirectory()) {
                                 // if the entry is a file, extracts it
@@ -334,7 +329,7 @@ public class AutoDownloader implements Downloader {
                             } else {
                                 // if the entry is a directory, make the directory
                                 File dir = new File(filePath);
-                                dir.mkdir();
+                                Files.createDirectories(dir.toPath());
                             }
                             zipIn.closeEntry();
                             entry = zipIn.getNextEntry();
