@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
@@ -308,6 +309,11 @@ public class AutoDownloader implements Downloader {
                                     .append((modeOthers & 1) == 0 ? '-' : 'x');
                             String permString = permStringBuilder.toString();
                             Files.setPosixFilePermissions(outputFilePath, PosixFilePermissions.fromString(permString));
+                            Files.setLastModifiedTime(outputFile.toPath(),
+                                    FileTime.fromMillis(entry.getLastModifiedDate().getTime()));
+                            LOGGER.trace(String.format("last modified time of file or directory '%s' is %s",
+                                    outputFile.getAbsolutePath(),
+                                    Files.getLastModifiedTime(outputFilePath)));
                         }
                     }
                 }else if(downloadCombi.getExtractionMode() == ExtractionMode.EXTRACTION_MODE_ZIP) {
@@ -331,6 +337,11 @@ public class AutoDownloader implements Downloader {
                                 File dir = new File(filePath);
                                 Files.createDirectories(dir.toPath());
                             }
+                            Files.setLastModifiedTime(Paths.get(filePath),
+                                    entry.getLastModifiedTime());
+                            LOGGER.trace(String.format("last modified time of file or directory '%s' is %s",
+                                    filePath,
+                                    Files.getLastModifiedTime(Paths.get(filePath))));
                             zipIn.closeEntry();
                             entry = zipIn.getNextEntry();
                         }
