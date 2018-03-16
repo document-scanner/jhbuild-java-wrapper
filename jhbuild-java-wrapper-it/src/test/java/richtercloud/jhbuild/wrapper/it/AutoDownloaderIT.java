@@ -30,6 +30,7 @@ import richtercloud.jhbuild.java.wrapper.MD5SumCheckUnequalsCallback;
 import richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
+import richtercloud.jhbuild.java.wrapper.download.DownloadException;
 import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallback;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
@@ -41,7 +42,7 @@ public class AutoDownloaderIT {
     private final static Logger LOGGER = LoggerFactory.getLogger(AutoDownloaderIT.class);
 
     @Test
-    public void testTarballExtraction() throws IOException, ExtractionException {
+    public void testTarballExtraction() throws IOException, ExtractionException, DownloadException {
         File installationPrefixDir = Files.createTempDirectory(String.format("%s-prefix",
                 JHBuildJavaWrapperIT.class.getSimpleName())).toFile();
         LOGGER.debug(String.format("installation prefix directory: %s",

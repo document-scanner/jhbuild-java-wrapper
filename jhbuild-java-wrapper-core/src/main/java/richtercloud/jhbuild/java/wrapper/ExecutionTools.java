@@ -106,13 +106,11 @@ public class ExecutionTools {
         OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
         if(silenceStdout || silenceStderr) {
             if(silenceStdout) {
-                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream(),
-                        retValue);
+                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream());
                 stdoutReaderThread.start();
             }
             if(silenceStderr) {
-                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream(),
-                        retValue);
+                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream());
                 stderrReaderThread.start();
             }
         }

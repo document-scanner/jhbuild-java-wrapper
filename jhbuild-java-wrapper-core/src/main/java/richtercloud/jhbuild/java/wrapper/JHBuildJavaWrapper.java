@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
+import richtercloud.jhbuild.java.wrapper.download.DownloadException;
 import richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallback;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
@@ -82,6 +83,11 @@ import richtercloud.jhbuild.java.wrapper.download.Downloader;
  *
  * @author richter
  */
+/*
+internal implementation notes:
+- it's troublesome to extract all installPrerequisites methods into a separate
+class because it uses almost all properties of JHBuildJavaWrapper
+*/
 public class JHBuildJavaWrapper {
     private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapper.class);
     public final static String GIT_DEFAULT = "git";
@@ -102,6 +108,11 @@ public class JHBuildJavaWrapper {
             "downloads");
     private final static String PATH = "PATH";
     private final static String CONFIGURE = "configure";
+    private final static String GIT_TEMPLATE = "git";
+    private final static String JHBUILD_TEMPLATE = "jhbuild";
+    private final static String PYTHON_TEMPLATE = "python";
+    private final static String CPAN_TEMPLATE = "cpan";
+    private final static String OPENSSL_TEMPLATE = "openssl";
 
     public static int calculateParallelism() {
         return Runtime.getRuntime().availableProcessors();
@@ -380,7 +391,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             InterruptedException,
             MissingSystemBinaryException,
-            BuildFailureException {
+            BuildFailureException,
+            DownloadException {
         if(inited) {
             LOGGER.debug("already inited");
             return true;
@@ -405,7 +417,7 @@ public class JHBuildJavaWrapper {
         //which is provided by a complete Perl installation only
         try {
             BinaryTools.validateBinary(cpan,
-                    "cpan",
+                    CPAN_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingCpan) {
@@ -424,8 +436,8 @@ public class JHBuildJavaWrapper {
                             parallelism,
                             "configure.gnu");
                     cpan = installPrerequisiteAutotools(installationPrefixPath,
-                            "cpan",
-                            "cpan",
+                            CPAN_TEMPLATE,
+                            CPAN_TEMPLATE,
                             perlDownloadCombi,
                             null, //patchDownloadCombis
                             buildStepProcesses
@@ -436,7 +448,7 @@ public class JHBuildJavaWrapper {
                     }
                     try {
                         BinaryTools.validateBinary(cpan,
-                                "cpan",
+                                CPAN_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
                         assert false: "cpan exisistence check or installation failed";
@@ -520,7 +532,7 @@ public class JHBuildJavaWrapper {
         }
         try {
             BinaryTools.validateBinary(git,
-                    "git",
+                    GIT_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingGit) {
@@ -536,8 +548,8 @@ public class JHBuildJavaWrapper {
                                     "git-2.13.3").getAbsolutePath(),
                             "d2dc550f6693ba7e5b16212b2714f59f");
                     git = installPrerequisiteAutotools(installationPrefixPath,
-                            "git",
-                            "git",
+                            GIT_TEMPLATE,
+                            GIT_TEMPLATE,
                             gitDownloadCombi,
                             null, //patchDownloadCombi,
                             parallelism);
@@ -547,7 +559,7 @@ public class JHBuildJavaWrapper {
                     }
                     try {
                         BinaryTools.validateBinary(git,
-                                "git",
+                                GIT_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex1) {
                         assert false: "git exisistence check or installation failed";
@@ -556,7 +568,7 @@ public class JHBuildJavaWrapper {
         }
         try {
             BinaryTools.validateBinary(openssl,
-                    "openssl",
+                    OPENSSL_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
             switch(actionOnMissingOpenssl) {
@@ -572,8 +584,8 @@ public class JHBuildJavaWrapper {
                                     "openssl-1.1.1-pre1").getAbsolutePath(),
                             "4ccfcaeeeb14730597aad0bc049a46b4");
                     openssl = installPrerequisiteAutotools(installationPrefixPath,
-                            "openssl",
-                            "openssl",
+                            OPENSSL_TEMPLATE,
+                            OPENSSL_TEMPLATE,
                             opensslDownloadCombi,
                             null, //patchDownloadCombi,
                             parallelism);
@@ -583,7 +595,7 @@ public class JHBuildJavaWrapper {
                     }
                     try {
                         BinaryTools.validateBinary(openssl,
-                                "openssl",
+                                OPENSSL_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
                         assert false: "openssl exisistence check or installation failed";
@@ -594,7 +606,7 @@ public class JHBuildJavaWrapper {
         //download time and might include instabilities from master)
         try {
             BinaryTools.validateBinary(python,
-                    "python",
+                    PYTHON_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
             switch(actionOnMissingPython) {
@@ -610,8 +622,8 @@ public class JHBuildJavaWrapper {
                                     "Python-3.6.4").getAbsolutePath(),
                             "9de6494314ea199e3633211696735f65");
                     python = installPrerequisiteAutotools(installationPrefixPath,
-                            "python",
-                            "python",
+                            PYTHON_TEMPLATE,
+                            PYTHON_TEMPLATE,
                             pythonDownloadCombi,
                             null, //patchDownloadCombi,
                             parallelism);
@@ -621,7 +633,7 @@ public class JHBuildJavaWrapper {
                     }
                     try {
                         BinaryTools.validateBinary(python,
-                                "python",
+                                PYTHON_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
                         assert false: "python exisistence check or installation failed";
@@ -630,7 +642,7 @@ public class JHBuildJavaWrapper {
         }
         try {
             BinaryTools.validateBinary(jhbuild,
-                    "jhbuild",
+                    JHBUILD_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingJHBuild) {
@@ -638,7 +650,7 @@ public class JHBuildJavaWrapper {
                     throw new IllegalStateException(String.format("jhbuild binary '%s' doesn't exist and can't be found in PATH",
                             jhbuild));
                 case DOWNLOAD:
-                    File jhbuildCloneDir = new File(downloadDir, "jhbuild");
+                    File jhbuildCloneDir = new File(downloadDir, JHBUILD_TEMPLATE);
                     boolean needClone = true;
                     if(jhbuildCloneDir.exists()
                             && jhbuildCloneDir.list().length > 0) {
@@ -692,7 +704,7 @@ public class JHBuildJavaWrapper {
                         LOGGER.debug("waiting for jhbuild download");
                         jhbuildCloneProcess.waitFor();
                         if(jhbuildCloneProcess.exitValue() != 0) {
-                            handleBuilderFailure("jhbuild",
+                            handleBuilderFailure(JHBUILD_TEMPLATE,
                                     BuildStep.CLONE,
                                     jhbuildCloneProcess);
                         }
@@ -711,7 +723,7 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild build bootstrap process");
                     jhbuildAutogenProcess.waitFor();
                     if(jhbuildAutogenProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild",
+                        handleBuilderFailure(JHBUILD_TEMPLATE,
                                 BuildStep.BOOTSTRAP,
                                 jhbuildAutogenProcess);
                     }
@@ -727,7 +739,7 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild build process");
                     jhbuildMakeProcess.waitFor();
                     if(jhbuildMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild",
+                        handleBuilderFailure(JHBUILD_TEMPLATE,
                                 BuildStep.MAKE,
                                 jhbuildMakeProcess);
                     }
@@ -743,12 +755,12 @@ public class JHBuildJavaWrapper {
                     LOGGER.debug("waiting for jhbuild installation process");
                     jhbuildMakeInstallProcess.waitFor();
                     if(jhbuildMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure("jhbuild",
+                        handleBuilderFailure(JHBUILD_TEMPLATE,
                                 BuildStep.MAKE_INSTALL,
                                 jhbuildMakeInstallProcess);
                     }
                     LOGGER.debug("jhbuild installation process finished");
-                    jhbuild = "jhbuild";
+                    jhbuild = JHBUILD_TEMPLATE;
                         //is found in modified path of every process built with
                         //buildProcess
                     LOGGER.debug(String.format("using jhbuild command '%s'",
@@ -824,7 +836,8 @@ public class JHBuildJavaWrapper {
             InterruptedException,
             MissingSystemBinaryException,
             BuildFailureException,
-            ModuleBuildFailureException {
+            ModuleBuildFailureException,
+            DownloadException {
         InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetInputStream != null;
         boolean retValue = installModuleset(modulesetInputStream,
@@ -861,7 +874,8 @@ public class JHBuildJavaWrapper {
             InterruptedException,
             MissingSystemBinaryException,
             BuildFailureException,
-            ModuleBuildFailureException {
+            ModuleBuildFailureException,
+            DownloadException {
         canceled = false;
         if(modulesetInputStream == null) {
             throw new IllegalArgumentException("modulesetInputStream mustn't be null");
@@ -952,7 +966,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             MissingSystemBinaryException,
             InterruptedException,
-            BuildFailureException {
+            BuildFailureException,
+            DownloadException {
         List<BuildStepProcess> buildStepProcesses = generateBuildStepProcessesAutotools(installationPrefixPath,
                 parallelism,
                 CONFIGURE);
@@ -995,133 +1010,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             MissingSystemBinaryException,
             InterruptedException,
-            BuildFailureException {
-        String retValue = installPrerequisite0(installationPrefixPath,
-                binary,
-                binaryDescription,
-                downloadCombi,
-                patchDownloadCombis,
-                buildStepProcesses);
-        return retValue;
-    }
-
-    /**
-     * Uses <pre>perl Build.PL
-     * perl Build installdeps
-     * perl Build
-     * perl Build install
-     * </pre> to avoid the necessity to install {@code cpan} which is usually
-     * provided by a complete Perl installation.
-     *
-     * @param installationPrefixPath
-     * @param binary
-     * @param binaryDescription
-     * @param downloadCombi
-     * @return
-     * @throws IOException
-     * @throws ExtractionException
-     * @throws MissingSystemBinary
-     * @throws InterruptedException
-     * @throws BuildFailureException
-     */
-    private String installPrerequisitePerl(String installationPrefixPath,
-            String binary,
-            String binaryDescription,
-            DownloadCombi downloadCombi,
-            List<DownloadCombi> patchDownloadCombis) throws IOException,
-            ExtractionException,
-            MissingSystemBinaryException,
-            InterruptedException,
-            BuildFailureException {
-        List<BuildStepProcess> buildStepProcesses = new LinkedList<>(Arrays.asList(new BuildStepProcess() {
-            @Override
-            public Process getProcess(File extractionLocationDir) throws IOException {
-                Process cpanProcess = createProcess(extractionLocationDir,
-                        installationPrefixPath,
-                        cpan, "Module::Build");
-                return cpanProcess;
-            }
-
-            @Override
-            public BuildStep getBuildStep() {
-                return BuildStep.CONFIGURE;
-            }
-        },
-                new BuildStepProcess() {
-                    @Override
-                    public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process configureProcess = createProcess(extractionLocationDir,
-                                installationPrefixPath,
-                                "perl", "Build.PL");
-                        return configureProcess;
-                    }
-
-                    @Override
-                    public BuildStep getBuildStep() {
-                        return BuildStep.CONFIGURE;
-                    }
-                },
-                new BuildStepProcess() {
-                    @Override
-                    public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process buildProcess = createProcess(extractionLocationDir,
-                                ImmutableMap.<String, String>builder()
-                                        .put(PATH, installationPrefixPath)
-                                        .put("PERL_MM_USE_DEFAULT", "1")
-                                        .build(),
-                                "perl", "Build", "installdeps");
-                        return buildProcess;
-                    }
-
-                    @Override
-                    public BuildStep getBuildStep() {
-                        return BuildStep.MAKE;
-                    }
-                },
-                new BuildStepProcess() {
-                    @Override
-                    public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process buildProcess = createProcess(extractionLocationDir,
-                                installationPrefixPath,
-                                "perl", "Build");
-                        return buildProcess;
-                    }
-
-                    @Override
-                    public BuildStep getBuildStep() {
-                        return BuildStep.MAKE;
-                    }
-                },
-                new BuildStepProcess() {
-                    @Override
-                    public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process installProcess = createProcess(extractionLocationDir,
-                                installationPrefixPath,
-                                "perl", "Build", "install");
-                        return installProcess;
-                    }
-
-                    @Override
-                    public BuildStep getBuildStep() {
-                        return BuildStep.MAKE_INSTALL;
-                    }
-                }));
-//        List<BuildStepProcess> buildStepProcesses = new LinkedList<>(Arrays.asList(new BuildStepProcess() {
-//            @Override
-//            public Process getProcess(File extractionLocationDir) throws IOException {
-//                Process buildProcess = createProcess(extractionLocationDir,
-//                        installationPrefixPath,
-//                        cpan, "install");
-//                return buildProcess;
-//            }
-//
-//            @Override
-//            public BuildStep getBuildStep() {
-//                return BuildStep.MAKE;
-//            }
-//        }));
-            //doesn't make the `po4a-translate` binary available in prefix when
-            //installing `po4a`
+            BuildFailureException,
+            DownloadException {
         String retValue = installPrerequisite0(installationPrefixPath,
                 binary,
                 binaryDescription,
@@ -1140,7 +1030,8 @@ public class JHBuildJavaWrapper {
             ExtractionException,
             MissingSystemBinaryException,
             InterruptedException,
-            BuildFailureException {
+            BuildFailureException,
+            DownloadException {
         boolean notDownloadCanceled = downloader.downloadFile(downloadCombi,
                 skipMD5SumCheck,
                 DownloadFailureCallback.RETRY_5_TIMES,

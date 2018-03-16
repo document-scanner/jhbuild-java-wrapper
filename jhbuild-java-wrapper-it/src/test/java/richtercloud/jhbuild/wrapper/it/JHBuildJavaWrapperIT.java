@@ -30,6 +30,7 @@ import richtercloud.jhbuild.java.wrapper.MissingSystemBinaryException;
 import richtercloud.jhbuild.java.wrapper.ModuleBuildFailureException;
 import richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
 import richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
+import richtercloud.jhbuild.java.wrapper.download.DownloadException;
 import richtercloud.jhbuild.java.wrapper.download.Downloader;
 
 /**
@@ -47,7 +48,8 @@ public class JHBuildJavaWrapperIT {
             InterruptedException,
             MissingSystemBinaryException,
             BuildFailureException,
-            ModuleBuildFailureException {
+            ModuleBuildFailureException,
+            DownloadException {
         File installationPrefixDir = Files.createTempDirectory(String.format("%s-prefix",
                 JHBuildJavaWrapperIT.class.getSimpleName())).toFile();
         LOGGER.debug(String.format("installation prefix directory: %s",

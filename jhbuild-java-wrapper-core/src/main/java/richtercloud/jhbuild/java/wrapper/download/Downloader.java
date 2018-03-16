@@ -47,11 +47,15 @@ public interface Downloader {
      * canceled, otherwise {@code true}, but exception might have been thrown
      * @throws IOException
      * @throws ExtractionException
+     * @throws DownloadException wraps any unexpected exception which might be
+     * of various kind given the fact that subclasses might be GUI based and
+     * execute on different threads
      */
     boolean downloadFile(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
             DownloadEmptyCallback downloadEmptyCallback) throws IOException,
-            ExtractionException;
+            ExtractionException,
+            DownloadException;
 }

@@ -15,7 +15,6 @@
 package richtercloud.jhbuild.java.wrapper;
 
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,60 +26,33 @@ import org.slf4j.LoggerFactory;
 public class OutputReaderThread extends Thread {
     private final static Logger LOGGER = LoggerFactory.getLogger(OutputReaderThread.class);
     private final static int OUTPUT_BUILDER_CAPACITY_DEFAULT = 2048;
+    private static int counter = 0;
+    @SuppressWarnings("PMD.AvoidStringBufferField")
+        //currently no better way found
     private final StringBuilder outputBuilder = new StringBuilder(OUTPUT_BUILDER_CAPACITY_DEFAULT);
     /**
      * The process stream to read ({@code stdout} or {@code stderr}).
      */
     private final InputStream processStream;
-    private final Process process;
-    private final Charset charset;
 
-    /**
-     * Creates a new {@code OutputReaderThread}.
-     *
-     * @param processStream the process output stream to read from
-     * @param issueHandler the issue handler for exceptions in this thread
-     */
-    public OutputReaderThread(InputStream processStream,
-            Process process) {
+    public OutputReaderThread(InputStream processStream) {
         this(processStream,
-                process,
-                Charset.defaultCharset());
-    }
-
-    public OutputReaderThread(InputStream processStream,
-            Process process,
-            Charset charset) {
-        this.processStream = processStream;
-        this.process = process;
-        this.charset = charset;
+                String.format("output-reader-thread-%d",
+                        counter));
+        counter += 1;
     }
 
     /**
      * Creates a new {@code OutputReaderThread}.
      *
      * @param processStream the process output stream to read from
-     * @param issueHandler the issue handler for exceptions in this thread
      * @param name the name of the thread (see
      * {@link Thread#Thread(java.lang.String) } for details)
      */
     public OutputReaderThread(InputStream processStream,
-            Process process,
-            String name) {
-        this(processStream,
-                process,
-                Charset.defaultCharset(),
-                name);
-    }
-
-    public OutputReaderThread(InputStream processStream,
-            Process process,
-            Charset charset,
             String name) {
         super(name);
         this.processStream = processStream;
-        this.process = process;
-        this.charset = charset;
     }
 
     public StringBuilder getOutputBuilder() {
@@ -114,7 +86,7 @@ public class OutputReaderThread extends Thread {
             LOGGER.trace(String.format("[output reader] %s",
                     line));
             outputBuilder.append(line)
-                    .append("\n");
+                    .append('\n');
         }
         LOGGER.trace("output reader thread terminated");
     }

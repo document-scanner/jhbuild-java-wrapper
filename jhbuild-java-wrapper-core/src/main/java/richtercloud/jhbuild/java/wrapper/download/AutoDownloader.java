@@ -79,7 +79,8 @@ public class AutoDownloader implements Downloader {
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
             DownloadEmptyCallback downloadEmptyCallback) throws IOException,
-            ExtractionException {
+            ExtractionException,
+            DownloadException {
         if(downloadCombi == null) {
             throw new IllegalArgumentException("downloadCombi mustn't be null");
         }
@@ -136,7 +137,8 @@ public class AutoDownloader implements Downloader {
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
             DownloadEmptyCallback downloadEmptyCallback) throws IOException,
-            ExtractionException {
+            ExtractionException,
+            DownloadException {
         assert downloadCombi != null;
         assert downloadCombi.getDownloadURL() != null;
         assert downloadCombi.getDownloadTarget() != null;

@@ -7,3 +7,9 @@
 [submodule "jhbuild-java-wrapper-it/checkstyle-config"]
 	path = jhbuild-java-wrapper-it/checkstyle-config
 	url = https://gitlab.com/krichter/checkstyle-config-gplv3.git
+[submodule "jhbuild-java-wrapper-core/code-analysis"]
+	path = jhbuild-java-wrapper-core/code-analysis
+	url = https://github.com/krichter722/code-analysis.git
+[submodule "jhbuild-java-wrapper-it/code-analysis"]
+	path = jhbuild-java-wrapper-it/code-analysis
+	url = https://github.com/krichter722/code-analysis.git

@@ -65,7 +65,8 @@ public class GUIDownloader extends AutoDownloader {
             DownloadFailureCallback downloadFailureCallback,
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
             DownloadEmptyCallback downloadEmptyCallback) throws IOException,
-            ExtractionException {
+            ExtractionException,
+            DownloadException {
         dialog = new SwingWorkerGetWaitDialog(downloadDialogParent,
                 downloadDialogTitle,
                 downloadDialogLabelText,
@@ -74,7 +75,8 @@ public class GUIDownloader extends AutoDownloader {
             @Override
             protected Boolean doInBackground() throws FileNotFoundException,
                     IOException,
-                    ExtractionException {
+                    ExtractionException,
+                    DownloadException {
                 boolean retValue = GUIDownloader.super.download(downloadCombi,
                         skipMD5SumCheck,
                         downloadFailureCallback,
@@ -99,7 +101,9 @@ public class GUIDownloader extends AutoDownloader {
         try {
             return downloadWorker.get();
         } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
+            LOGGER.error("unexpected interrupted exception occured",
+                    ex);
+            throw new DownloadException(ex);
         }catch(ExecutionException ex) {
             if(ex.getCause() instanceof IOException) {
                 throw (IOException)ex.getCause();
@@ -107,7 +111,9 @@ public class GUIDownloader extends AutoDownloader {
             if(ex.getCause() instanceof ExtractionException) {
                 throw (ExtractionException)ex.getCause();
             }
-            throw new RuntimeException(ex);
+            LOGGER.error("unexpected interrupted exception occured",
+                    ex);
+            throw new DownloadException(ex);
         }
     }
 
