@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -34,6 +33,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
@@ -353,37 +353,14 @@ public class JHBuildJavaWrapper {
                 directory != null ? String.format("directory '%s'",
                         directory.getAbsolutePath())
                         : "current directory"));
-        ProcessBuilder processBuilder = new ProcessBuilder(sh, "-c", String.join(" ", commands))
-                .redirectOutput(silenceStdout ? Redirect.PIPE : Redirect.INHERIT)
-                .redirectError(silenceStderr ? Redirect.PIPE : Redirect.INHERIT);
-            //need to wrap commands in a shell in order allow modified path for
-            //binary discovery (the unmodifiable PATH of the JVM is used to find
-            //the command to execute which doesn't allow any modification after
-            //installations by wrapper)
-        if(directory != null) {
-            processBuilder.directory(directory);
-        }
-        processBuilder.environment().putAll(env);
-        Process retValue = processBuilder.start();
-        if(silenceStdout || silenceStderr) {
-            OutputReaderThread stdoutReaderThread = null, stderrReaderThread = null;
-            if(silenceStdout) {
-                stdoutReaderThread = new OutputReaderThread(retValue.getInputStream(),
-                        retValue);
-                stdoutReaderThread.start();
-            }
-            if(silenceStderr) {
-                stderrReaderThread = new OutputReaderThread(retValue.getErrorStream(),
-                        retValue);
-                stderrReaderThread.start();
-            }
-            processOutputReaderThreadMap.put(retValue,
-                    new ImmutablePair<>(stdoutReaderThread, stderrReaderThread));
-        }
+        Triple<Process, OutputReaderThread, OutputReaderThread> process = ExecutionTools.createProcess(directory, env, sh, silenceStdout, silenceStderr, commands);
+        processOutputReaderThreadMap.put(process.getLeft(),
+                new ImmutablePair<>(process.getMiddle(),
+                        process.getRight()));
         synchronized(this) {
-            this.activeProcess = retValue;
+            this.activeProcess = process.getLeft();
         }
-        return retValue;
+        return process.getLeft();
     }
 
     /**
