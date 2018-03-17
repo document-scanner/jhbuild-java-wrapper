@@ -36,6 +36,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import richtercloud.execution.tools.ExecutionTools;
+import richtercloud.execution.tools.OutputReaderThread;
 import richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
 import richtercloud.jhbuild.java.wrapper.download.DownloadException;
