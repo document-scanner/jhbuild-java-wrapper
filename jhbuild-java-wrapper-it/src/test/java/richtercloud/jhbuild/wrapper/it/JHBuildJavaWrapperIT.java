@@ -17,6 +17,7 @@ package richtercloud.jhbuild.wrapper.it;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -70,10 +71,10 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 downloader, //downloader
                 false, //skipMD5SumCheck
-                true, //silenceStdout (saves log capacity on Travis CI service
+                new StringWriter(), //stdoutAppendable (saves log capacity on Travis CI service
                     //with 4MB log size limit and doesn't hurt because stdout
                     //and stderr are printed in BuildFailureException message)
-                true //silenceStderr
+                new StringWriter() //stderrAppendable
         );
         InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetFileInputStream != null;
@@ -91,10 +92,10 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 downloader, //downloader
                 false, //skipMD5SumCheck
-                true, //silenceStdout (saves log capacity on Travis CI service
+                new StringWriter(), //stdoutAppendable (saves log capacity on Travis CI service
                     //with 4MB log size limit and doesn't hurt because stdout
                     //and stderr are printed in BuildFailureException message)
-                true //silenceStderr
+                new StringWriter() //stderrAppendable
         );
         jHBuildJavaWrapper.installModuleset("postgresql-9.6.3");
     }

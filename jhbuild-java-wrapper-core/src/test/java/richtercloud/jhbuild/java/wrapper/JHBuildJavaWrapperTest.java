@@ -17,6 +17,7 @@ package richtercloud.jhbuild.java.wrapper;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.Random;
 import static org.junit.Assert.*;
@@ -82,8 +83,8 @@ public class JHBuildJavaWrapperTest {
                     JHBuildJavaWrapper.OPENSSL_DEFAULT,
                     new AutoDownloader(),
                     false, //skipMD5SumCheck
-                    true,//silenceStdout
-                    true,//silenceStderr,
+                    new StringWriter(), //stdoutAppendable
+                    new StringWriter(), //stderrAppendable
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
@@ -116,8 +117,8 @@ public class JHBuildJavaWrapperTest {
                     JHBuildJavaWrapper.OPENSSL_DEFAULT,
                     new AutoDownloader(),
                     false, //skipMD5SumCheck
-                    true,//silenceStdout
-                    true,//silenceStderr,
+                    new StringWriter(), //stdoutAppendable
+                    new StringWriter(), //stderrAppendable
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
                     ActionOnMissingBinary.DOWNLOAD,
@@ -272,8 +273,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                true,//silenceStdout
-                true,//silenceStderr,
+                new StringWriter(), //stdoutAppendable
+                new StringWriter(), //stderrAppendable
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -334,8 +335,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                true,//silenceStdout
-                true,//silenceStderr,
+                new StringWriter(), //stdoutAppendable
+                new StringWriter(), //stderrAppendable
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
