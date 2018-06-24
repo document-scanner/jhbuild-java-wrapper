@@ -1,0 +1,10 @@
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+main:
+    image: maven:slim
+    script:
+        - apt-get update && apt-get install --yes git openjfx dash bash make gcc
+        - apt-get install --yes python
+            # necessary until runtime failure of jhbuild HTTPS downloads due to `<urlopen error [SSL: NO_CIPHERS_AVAILABLE] no ciphers available (_ssl.c:661)` occur, see https://stackoverflow.com/questions/48941028/python-https-download-fails-due-to-urlopen-error-ssl-no-ciphers-available-n for input
+        - env JHBUILD_RUN_AS_ROOT= mvn --batch-mode install

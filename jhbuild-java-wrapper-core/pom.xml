@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>richtercloud</groupId>
+        <groupId>de.richtercloud</groupId>
         <artifactId>jhbuild-java-wrapper</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
@@ -27,9 +27,9 @@
             <version>2.5</version>
         </dependency>
         <dependency>
-            <groupId>richtercloud</groupId>
+            <groupId>de.richtercloud</groupId>
             <artifactId>swing-worker-get-wait-dialog</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -50,7 +50,7 @@
                 `java.lang.NoClassDefFoundError: org/tukaani/xz/XZInputStream`
                 at runtime -->
         <dependency>
-            <groupId>richtercloud</groupId>
+            <groupId>de.richtercloud</groupId>
             <artifactId>message-handler</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
@@ -84,7 +84,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>richtercloud</groupId>
+            <groupId>de.richtercloud</groupId>
             <artifactId>execution-tools</artifactId>
             <version>1.0-SNAPSHOT</version>
             <type>jar</type>

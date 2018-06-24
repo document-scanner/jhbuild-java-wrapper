@@ -1,0 +1,11 @@
+language: java
+
+jdk:
+- oraclejdk8
+- openjdk8
+
+install: /bin/true
+
+script:
+- mvn --batch-mode --update-snapshots install -DskipTests=true -Dmaven.javadoc.skip=true --show-version
+- mvn --batch-mode verify

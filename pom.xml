@@ -2,12 +2,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>richtercloud</groupId>
+        <groupId>de.richtercloud</groupId>
         <artifactId>maven-parent</artifactId>
         <version>3</version>
         <relativePath></relativePath>
     </parent>
-    <groupId>richtercloud</groupId>
     <artifactId>jhbuild-java-wrapper</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -33,4 +32,13 @@
             <version>1.2.2</version>
         </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <id>sonatype-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>
