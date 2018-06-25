@@ -327,6 +327,14 @@ public class JHBuildJavaWrapper {
         this.parallelism = parallelism;
     }
 
+    public File getDownloadDir() {
+        return downloadDir;
+    }
+
+    public File getInstallationPrefixDir() {
+        return installationPrefixDir;
+    }
+
     private Process createProcess(String path,
             String... commands) throws IOException {
         Process retValue = createProcess(null,
