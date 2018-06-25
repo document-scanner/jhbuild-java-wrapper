@@ -22,6 +22,15 @@ import java.io.File;
  */
 public class BinaryTools {
 
+    /**
+     * Does what
+     * {@link #validateBinary(java.lang.String, java.lang.String, java.lang.String) }
+     * while using the environment variable {@code PATH} for {@code path}.
+     * @param binary the binary to validate
+     * @param name the name of the binary (used to provide comprehensive error
+     *     messages)
+     * @throws BinaryValidationException if the validation failed
+     */
     public static void validateBinary(String binary,
             String name) throws BinaryValidationException {
         validateBinary(binary,
@@ -29,26 +38,53 @@ public class BinaryTools {
                 System.getenv("PATH"));
     }
 
+    /**
+     * Checks a binary to be either a specification of a valid binary or a
+     * binary name which can be found in the specified path. Valid means that it
+     * is a file and can be executed. The check is performed for the binary
+     * specification first, then it's tried as name with every element of
+     * {@code path} which is split with {@link File#pathSeparator}.
+     * @param binary the binary specification (path or name)
+     * @param name the name of the binary (used to provide comprehensive error
+     *     messages)
+     * @param path the search path in the OS format (pathes separated with the
+     *     OS' path separator)
+     * @throws BinaryValidationException if the binary can't be found or is
+     *     invalid
+     */
     public static void validateBinary(String binary,
             String name,
             String path) throws BinaryValidationException {
         if(binary == null || binary.isEmpty()) {
-            throw new IllegalArgumentException(String.format("%s binary path is null or empty",
+            throw new IllegalArgumentException(String.format("%s binary is null or empty",
                     name));
         }
         if(name == null || name.isEmpty()) {
             throw new IllegalArgumentException("name mustn't be null or empty");
         }
-        if(new File(binary).exists()) {
-            return;
+        File binaryFile = new File(binary);
+        if(binaryFile.exists()) {
+            if(!binaryFile.isFile()) {
+                throw new IllegalArgumentException(String.format("%s binary '%s' points to an existing location which is not a file",
+                        name,
+                        binary));
+            }
+            if(!binaryFile.canExecute()) {
+                throw new IllegalArgumentException(String.format("%s binary '%s' points to an existing file can't be executed",
+                        name,
+                        binary));
+            }
         }
         String[] pathSplits = path.split(File.pathSeparator);
         for(String pathSplit : pathSplits) {
-            if(new File(pathSplit, binary).exists()) {
+            binaryFile = new File(pathSplit, binary);
+            if(binaryFile.exists()
+                    && binaryFile.isFile()
+                    && binaryFile.canExecute()) {
                 return;
             }
         }
-        throw new BinaryValidationException(String.format("%s binary path points to an inexisting location and can't be found in PATH",
+        throw new BinaryValidationException(String.format("%s binary path points to an inexisting location or to a location which is not a file or can't be executed (directly or in path)",
                 name));
     }
 
