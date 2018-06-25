@@ -32,9 +32,12 @@ public class BinaryTools {
     public static void validateBinary(String binary,
             String name,
             String path) throws BinaryValidationException {
-        if(binary == null) {
-            throw new BinaryValidationException(String.format("%s binary path is null",
+        if(binary == null || binary.isEmpty()) {
+            throw new IllegalArgumentException(String.format("%s binary path is null or empty",
                     name));
+        }
+        if(name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("name mustn't be null or empty");
         }
         if(new File(binary).exists()) {
             return;
