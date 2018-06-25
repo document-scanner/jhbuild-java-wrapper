@@ -4,7 +4,7 @@
     <parent>
         <groupId>de.richtercloud</groupId>
         <artifactId>jhbuild-java-wrapper</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0</version>
     </parent>
     <artifactId>jhbuild-java-wrapper-it</artifactId>
     <packaging>jar</packaging>
@@ -14,7 +14,7 @@
         <dependency>
             <groupId>de.richtercloud</groupId>
             <artifactId>jhbuild-java-wrapper-core</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0</version>
             <type>jar</type>
         </dependency>
         <!-- other dependencies -->
