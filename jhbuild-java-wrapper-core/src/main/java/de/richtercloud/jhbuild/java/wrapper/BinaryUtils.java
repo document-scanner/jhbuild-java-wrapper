@@ -75,6 +75,7 @@ public final class BinaryUtils {
                         name,
                         binary));
             }
+            return;
         }
         String[] pathSplits = path.split(File.pathSeparator);
         for(String pathSplit : pathSplits) {
