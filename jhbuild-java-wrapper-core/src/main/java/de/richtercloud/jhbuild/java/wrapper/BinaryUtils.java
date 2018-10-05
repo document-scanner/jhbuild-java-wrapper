@@ -85,8 +85,10 @@ public final class BinaryUtils {
                 return;
             }
         }
-        throw new BinaryValidationException(String.format("%s binary path points to an inexisting location or to a location which is not a file or can't be executed (directly or in path)",
-                name));
+        throw new BinaryValidationException(String.format("%s binary path '%s' points to an inexisting location or to a location which is not a file or can't be executed (directly or in path '%s')",
+                name,
+                binary,
+                path));
     }
 
     private BinaryUtils() {
