@@ -3,12 +3,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -16,10 +16,17 @@ package de.richtercloud.jhbuild.java.wrapper;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
+import de.richtercloud.execution.tools.ExecutionTools;
+import de.richtercloud.execution.tools.OutputReaderThread;
+import de.richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
+import de.richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
+import de.richtercloud.jhbuild.java.wrapper.download.DownloadException;
+import de.richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallback;
+import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -36,14 +43,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import de.richtercloud.execution.tools.ExecutionTools;
-import de.richtercloud.execution.tools.OutputReaderThread;
-import de.richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
-import de.richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
-import de.richtercloud.jhbuild.java.wrapper.download.DownloadException;
-import de.richtercloud.jhbuild.java.wrapper.download.DownloadFailureCallback;
-import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
 
+/*
+internal implementation notes:
+- it's troublesome to extract all installPrerequisites methods into a separate
+class because it uses almost all properties of JHBuildJavaWrapper
+*/
 /**
  * A wrapper around GNOME's JHBuild build and dependency manager which allows
  * to automatic download of tarballs and checkout of source roots with various
@@ -52,7 +57,7 @@ import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
  *
  * The wrapper uses some system binaries which are expected to be present and
  * otherwise need to be installed manually by the caller (e.g. {@code sh} and
- * {@code make}. Other non-system binaries, like {@link git} and {@link jhbuild}
+ * {@code make}. Other non-system binaries, like {@code git} and {@code jhbuild}
  * itself are searched for and automatically downloaded and installed in case of
  * absence. Both system and non-system binaries are search for in the
  * environment variable {@code PATH} and the subdirectory {@code bin} of the
@@ -85,11 +90,6 @@ import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
  *
  * @author richter
  */
-/*
-internal implementation notes:
-- it's troublesome to extract all installPrerequisites methods into a separate
-class because it uses almost all properties of JHBuildJavaWrapper
-*/
 public class JHBuildJavaWrapper {
     private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapper.class);
     public final static String GIT_DEFAULT = "git";
@@ -116,11 +116,7 @@ public class JHBuildJavaWrapper {
     private final static String CPAN_TEMPLATE = "cpan";
     private final static String OPENSSL_TEMPLATE = "openssl";
     private final static String REDIRECTED_TEMPLATE = "[redirected]";
-
-    public static int calculateParallelism() {
-        return Runtime.getRuntime().availableProcessors();
-    }
-
+    private static final String ACTION_TEMPLATE = "action %s not supported";
     /**
      * The {@code git} binary to use.
      */
@@ -180,13 +176,13 @@ public class JHBuildJavaWrapper {
      * {@code [redirected]} in this case).
      */
     private final Appendable stderrAppendable;
-    private boolean canceled = false;
+    private boolean canceled;
     /**
      * A pointer to the currently active process which allows to destroy it in
      * {@link #cancelInstallModuleset() } and thus minimize the time before
      * returning after cancelation has been requested.
      */
-    private Process activeProcess = null;
+    private Process activeProcess;
     private final Map<Process, Pair<OutputReaderThread, OutputReaderThread>> processOutputReaderThreadMap = new HashMap<>();
     private final Downloader downloader;
     /**
@@ -194,6 +190,10 @@ public class JHBuildJavaWrapper {
      * {@code make}, except {@code make install}.
      */
     private final int parallelism;
+
+    public static int calculateParallelism() {
+        return Runtime.getRuntime().availableProcessors();
+    }
 
     public JHBuildJavaWrapper(ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingZlib,
@@ -337,32 +337,21 @@ public class JHBuildJavaWrapper {
 
     private Process createProcess(String path,
             String... commands) throws IOException {
-        Process retValue = createProcess(null,
+        return createProcess(null,
                 path,
                 commands);
-        return retValue;
     }
 
     private Process createProcess(File directory,
             String path,
             String... commands) throws IOException {
-        Process retValue = createProcess(directory,
+        return createProcess(directory,
                 ImmutableMap.<String, String>builder()
                         .put("PATH", path)
                         .build(),
                 commands);
-        return retValue;
     }
 
-    /**
-     * Allows sharing code between different process creation routines.
-     *
-     * @param directory
-     * @param path
-     * @param commands
-     * @return
-     * @throws IOException
-     */
     /*
     internal implementation notes:
     - checking for canceled doesn't make sense here because null would have to
@@ -370,6 +359,15 @@ public class JHBuildJavaWrapper {
     creates the need to evaluate the return value by callers which is equally
     complex as checking the condition before calls to createProcess
     */
+    /**
+     * Allows sharing code between different process creation routines.
+     *
+     * @param directory the working directory
+     * @param env the environment
+     * @param commands the command string(s)
+     * @return the created process
+     * @throws IOException if an I/O exception occurs during creation
+     */
     private Process createProcess(File directory,
             Map<String, String> env,
             String... commands) throws IOException {
@@ -397,16 +395,17 @@ public class JHBuildJavaWrapper {
     /**
      * Initialization routines.
      *
-     * @param installationPrefixPath
+     * @param installationPrefixPath the installation prefix path
      * @return {@code false} if the download or any build step has been
-     * canceled, {@code true} otherwise
-     * @throws IOException
-     * @throws ExtractionException
-     * @throws InterruptedException
-     * @throws MissingSystemBinaryException
-     * @throws BuildFailureException
-     * @throws InitCanceledException
+     *     canceled, {@code true} otherwise
+     * @throws IOException if such an exception occurs
+     * @throws ExtractionException if such an exception occurs
+     * @throws InterruptedException if such an exception occurs
+     * @throws MissingSystemBinaryException if such an exception occurs
+     * @throws BuildFailureException if such an exception occurs
      */
+    @SuppressWarnings({"PMD.TooFewBranchesForASwitchStatement",
+        "PMD.PreserveStackTrace"})
     private boolean init(String installationPrefixPath) throws IOException,
             ExtractionException,
             InterruptedException,
@@ -423,7 +422,7 @@ public class JHBuildJavaWrapper {
         LOGGER.trace(String.format("silenceStderr: %s",
                 stderrAppendable));
         try {
-            BinaryTools.validateBinary(cc,
+            BinaryUtils.validateBinary(cc,
                     "cc",
                     installationPrefixPath);
         }catch(BinaryValidationException gccBinaryValidationException) {
@@ -436,14 +435,15 @@ public class JHBuildJavaWrapper {
         //git needs `Module::Build` which needs to be installed with `cpan`
         //which is provided by a complete Perl installation only
         try {
-            BinaryTools.validateBinary(cpan,
+            BinaryUtils.validateBinary(cpan,
                     CPAN_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingCpan) {
                 case FAIL:
                     throw new IllegalStateException(String.format("cpan binary '%s' doesn't exist and can't be found in PATH",
-                            cpan));
+                            cpan),
+                            ex);
                 case DOWNLOAD:
                     DownloadCombi perlDownloadCombi = new DownloadCombi("http://www.cpan.org/src/5.0/perl-5.26.1.tar.gz",
                             new File(downloadDir,
@@ -467,25 +467,32 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     try {
-                        BinaryTools.validateBinary(cpan,
+                        BinaryUtils.validateBinary(cpan,
                                 CPAN_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
-                        assert false: "cpan exisistence check or installation failed";
+                        throw new IllegalStateException("cpan exisistence check or installation failed when cpan " +
+                                "installation is expected to have been successful",
+                                ex2);
                     }
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingCpan),
+                            ex);
             }
         }
         //gettext is a prerequisite of git (needs `msgfmt` command which is in
         //`gettext-tools`)
         try {
-            BinaryTools.validateBinary(msgfmt,
+            BinaryUtils.validateBinary(msgfmt,
                     "gettext",
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingMsgfmt) {
                 case FAIL:
                     throw new IllegalStateException(String.format("msgfmt binary '%s' doesn't exist and can't be found in PATH",
-                            msgfmt));
+                            msgfmt),
+                            ex);
                 case DOWNLOAD:
                     DownloadCombi gettextDownloadCombi = new DownloadCombi("https://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.1.tar.xz",
                             new File(downloadDir,
@@ -510,12 +517,18 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     try {
-                        BinaryTools.validateBinary(msgfmt,
+                        BinaryUtils.validateBinary(msgfmt,
                                 "msgfmt",
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex1) {
-                        assert false: "msgfmt exisistence check or installation failed";
+                        throw new IllegalArgumentException("msgfmt exisistence check or installation failed when " +
+                                "gettext installation is expected to have been successful",
+                                ex1);
                     }
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingMsgfmt),
+                            ex);
             }
         }
         //zlib is a prerequisite of git and python build
@@ -548,17 +561,22 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     assert "".equals(zlib);
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingZlib));
             }
         }
         try {
-            BinaryTools.validateBinary(git,
+            BinaryUtils.validateBinary(git,
                     GIT_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingGit) {
                 case FAIL:
                     throw new IllegalStateException(String.format("git binary '%s' doesn't exist and can't be found in PATH",
-                            git));
+                            git),
+                            ex);
                 case DOWNLOAD:
                     DownloadCombi gitDownloadCombi = new DownloadCombi("https://www.kernel.org/pub/software/scm/git/git-2.13.3.tar.gz",
                             new File(downloadDir,
@@ -578,23 +596,31 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     try {
-                        BinaryTools.validateBinary(git,
+                        BinaryUtils.validateBinary(git,
                                 GIT_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex1) {
-                        assert false: "git exisistence check or installation failed";
+                        throw new IllegalArgumentException("git exisistence check or installation failed when git " +
+                                "installation is expected to have been successful",
+                                ex1);
                     }
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingGit),
+                            ex);
             }
         }
         try {
-            BinaryTools.validateBinary(openssl,
+            BinaryUtils.validateBinary(openssl,
                     OPENSSL_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
             switch(actionOnMissingOpenssl) {
                 case FAIL:
                     throw new IllegalStateException(String.format("openssl binary '%s' doesn't exist and can't be found in PATH",
-                            openssl));
+                            openssl),
+                            ex1);
                 case DOWNLOAD:
                     DownloadCombi opensslDownloadCombi = new DownloadCombi("https://www.openssl.org/source/openssl-1.1.1-pre1.tar.gz",
                             new File(downloadDir,
@@ -614,25 +640,33 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     try {
-                        BinaryTools.validateBinary(openssl,
+                        BinaryUtils.validateBinary(openssl,
                                 OPENSSL_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
-                        assert false: "openssl exisistence check or installation failed";
+                        throw new IllegalArgumentException("openssl exisistence check or installation failed when " +
+                                "openssl installation is expected to have been successful",
+                                ex2);
                     }
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingOpenssl),
+                            ex1);
             }
         }
         //unclear why git version of Python has been used before (only increases
         //download time and might include instabilities from master)
         try {
-            BinaryTools.validateBinary(python,
+            BinaryUtils.validateBinary(python,
                     PYTHON_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
             switch(actionOnMissingPython) {
                 case FAIL:
                     throw new IllegalStateException(String.format("python binary '%s' doesn't exist and can't be found in PATH",
-                            python));
+                            python),
+                            ex1);
                 case DOWNLOAD:
                     DownloadCombi pythonDownloadCombi = new DownloadCombi("https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tgz",
                             new File(downloadDir,
@@ -652,150 +686,172 @@ public class JHBuildJavaWrapper {
                         return false;
                     }
                     try {
-                        BinaryTools.validateBinary(python,
+                        BinaryUtils.validateBinary(python,
                                 PYTHON_TEMPLATE,
                                 installationPrefixPath);
                     } catch (BinaryValidationException ex2) {
-                        assert false: "python exisistence check or installation failed";
+                        throw new IllegalArgumentException("python exisistence check or installation failed when " +
+                                "python installation is expected to have been successful",
+                                ex2);
                     }
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingPython),
+                            ex1);
             }
         }
         try {
-            BinaryTools.validateBinary(jhbuild,
+            BinaryUtils.validateBinary(jhbuild,
                     JHBUILD_TEMPLATE,
                     installationPrefixPath);
         }catch(BinaryValidationException ex) {
             switch(actionOnMissingJHBuild) {
                 case FAIL:
                     throw new IllegalStateException(String.format("jhbuild binary '%s' doesn't exist and can't be found in PATH",
-                            jhbuild));
+                            jhbuild),
+                            ex);
                 case DOWNLOAD:
-                    File jhbuildCloneDir = new File(downloadDir, JHBUILD_TEMPLATE);
-                    boolean needClone = true;
-                    if(jhbuildCloneDir.exists()
-                            && jhbuildCloneDir.list().length > 0) {
-                        //check whether the existing non-empty directory is a
-                        //valid source root
-                        synchronized(this) {
-                            if(canceled) {
-                                return false;
-                            }
-                        }
-                        Process jhbuildSourceRootCheckProcess = createProcess(jhbuildCloneDir,
-                                installationPrefixPath,
-                                git,
-                                "status");
-                        LOGGER.debug("waiting for jhbuild source root check");
-                        jhbuildSourceRootCheckProcess.waitFor();
-                        if(jhbuildSourceRootCheckProcess.exitValue() != 0) {
-                            OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getKey();
-                            OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getValue();
-                            String stdout = REDIRECTED_TEMPLATE;
-                            String stderr = REDIRECTED_TEMPLATE;
-                            if(stdoutReaderThread != null) {
-                                stdoutReaderThread.join();
-                                stdout = stdoutReaderThread.getOutputAppendable().toString();
-                            }
-                            if(stderrReaderThread != null) {
-                                stderrReaderThread.join();
-                                stderr = stderrReaderThread.getOutputAppendable().toString();
-                            }
-                            throw new IllegalStateException(String.format("The "
-                                    + "jhbuild clone directory '%s' already "
-                                    + "exist, is not empty and is not a valid "
-                                    + "git source root. This might be the "
-                                    + "result of a failing previous checkout. "
-                                    + "You need to check and eventually delete "
-                                    + "the existing directory or specify "
-                                    + "another download directory for JHBuild "
-                                    + "Java wrapper (git status process had "
-                                    + "stdout '%s' and stderr '%s').",
-                                    jhbuildCloneDir.getAbsolutePath(),
-                                    stdout,
-                                    stderr));
-                        }
-                        needClone = false;
+                    if(!jhbuildDownload(installationPrefixPath)) {
+                        return false;
                     }
-                    if(needClone) {
-                        synchronized(this) {
-                            if(canceled) {
-                                return false;
-                            }
-                        }
-                        Process jhbuildCloneProcess = createProcess(installationPrefixPath,
-                                git,
-                                "clone",
-                                "git://git.gnome.org/jhbuild",
-                                jhbuildCloneDir.getAbsolutePath());
-                            //directory doesn't matter because target path is
-                            //absolute
-                        LOGGER.debug("waiting for jhbuild download");
-                        jhbuildCloneProcess.waitFor();
-                        if(jhbuildCloneProcess.exitValue() != 0) {
-                            handleBuilderFailure(JHBUILD_TEMPLATE,
-                                    BuildStep.CLONE,
-                                    jhbuildCloneProcess);
-                        }
-                        LOGGER.debug("jhbuild download finished");
-                    }
-                    synchronized(this) {
-                        if(canceled) {
-                            return false;
-                        }
-                    }
-                    Process jhbuildAutogenProcess = createProcess(jhbuildCloneDir,
-                            installationPrefixPath,
-                            sh, "autogen.sh",
-                            String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
-                        //autogen.sh runs configure
-                    LOGGER.debug("waiting for jhbuild build bootstrap process");
-                    jhbuildAutogenProcess.waitFor();
-                    if(jhbuildAutogenProcess.exitValue() != 0) {
-                        handleBuilderFailure(JHBUILD_TEMPLATE,
-                                BuildStep.BOOTSTRAP,
-                                jhbuildAutogenProcess);
-                    }
-                    LOGGER.debug("jhbuild build bootstrap process finished");
-                    synchronized(this) {
-                        if(canceled) {
-                            return false;
-                        }
-                    }
-                    Process jhbuildMakeProcess = createProcess(jhbuildCloneDir,
-                            installationPrefixPath,
-                            make, String.format("-j%d", parallelism));
-                    LOGGER.debug("waiting for jhbuild build process");
-                    jhbuildMakeProcess.waitFor();
-                    if(jhbuildMakeProcess.exitValue() != 0) {
-                        handleBuilderFailure(JHBUILD_TEMPLATE,
-                                BuildStep.MAKE,
-                                jhbuildMakeProcess);
-                    }
-                    LOGGER.debug("jhbuild build process finished");
-                    synchronized(this) {
-                        if(canceled) {
-                            return false;
-                        }
-                    }
-                    Process jhbuildMakeInstallProcess = createProcess(jhbuildCloneDir,
-                            installationPrefixPath,
-                            make, "install");
-                    LOGGER.debug("waiting for jhbuild installation process");
-                    jhbuildMakeInstallProcess.waitFor();
-                    if(jhbuildMakeInstallProcess.exitValue() != 0) {
-                        handleBuilderFailure(JHBUILD_TEMPLATE,
-                                BuildStep.MAKE_INSTALL,
-                                jhbuildMakeInstallProcess);
-                    }
-                    LOGGER.debug("jhbuild installation process finished");
-                    jhbuild = JHBUILD_TEMPLATE;
-                        //is found in modified path of every process built with
-                        //buildProcess
-                    LOGGER.debug(String.format("using jhbuild command '%s'",
-                            jhbuild));
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(ACTION_TEMPLATE,
+                            actionOnMissingJHBuild),
+                            ex);
             }
         }
         this.inited = true;
+        return true;
+    }
+
+    private boolean jhbuildDownload(String installationPrefixPath) throws InterruptedException,
+            BuildFailureException,
+            IOException {
+        File jhbuildCloneDir = new File(downloadDir, JHBUILD_TEMPLATE);
+        boolean needClone = true;
+        if(jhbuildCloneDir.exists()
+                && jhbuildCloneDir.list().length > 0) {
+            //check whether the existing non-empty directory is a
+            //valid source root
+            synchronized(this) {
+                if(canceled) {
+                    return false;
+                }
+            }
+            Process jhbuildSourceRootCheckProcess = createProcess(jhbuildCloneDir,
+                    installationPrefixPath,
+                    git,
+                    "status");
+            LOGGER.debug("waiting for jhbuild source root check");
+            jhbuildSourceRootCheckProcess.waitFor();
+            if(jhbuildSourceRootCheckProcess.exitValue() != 0) {
+                OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getKey();
+                OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(jhbuildSourceRootCheckProcess).getValue();
+                String stdout = REDIRECTED_TEMPLATE;
+                String stderr = REDIRECTED_TEMPLATE;
+                if(stdoutReaderThread != null) {
+                    stdoutReaderThread.join();
+                    stdout = stdoutReaderThread.getOutputAppendable().toString();
+                }
+                if(stderrReaderThread != null) {
+                    stderrReaderThread.join();
+                    stderr = stderrReaderThread.getOutputAppendable().toString();
+                }
+                throw new IllegalStateException(String.format("The "
+                                + "jhbuild clone directory '%s' already "
+                                + "exist, is not empty and is not a valid "
+                                + "git source root. This might be the "
+                                + "result of a failing previous checkout. "
+                                + "You need to check and eventually delete "
+                                + "the existing directory or specify "
+                                + "another download directory for JHBuild "
+                                + "Java wrapper (git status process had "
+                                + "stdout '%s' and stderr '%s').",
+                        jhbuildCloneDir.getAbsolutePath(),
+                        stdout,
+                        stderr));
+            }
+            needClone = false;
+        }
+        if(needClone) {
+            synchronized(this) {
+                if(canceled) {
+                    return false;
+                }
+            }
+            Process jhbuildCloneProcess = createProcess(installationPrefixPath,
+                    git,
+                    "clone",
+                    "https://gitlab.gnome.org/GNOME/jhbuild.git",
+                    jhbuildCloneDir.getAbsolutePath());
+            //directory doesn't matter because target path is
+            //absolute
+            LOGGER.debug("waiting for jhbuild download");
+            jhbuildCloneProcess.waitFor();
+            if(jhbuildCloneProcess.exitValue() != 0) {
+                handleBuilderFailure(JHBUILD_TEMPLATE,
+                        BuildStep.CLONE,
+                        jhbuildCloneProcess);
+            }
+            LOGGER.debug("jhbuild download finished");
+        }
+        synchronized(this) {
+            if(canceled) {
+                return false;
+            }
+        }
+        Process jhbuildAutogenProcess = createProcess(jhbuildCloneDir,
+                installationPrefixPath,
+                sh, "autogen.sh",
+                String.format("--prefix=%s", installationPrefixDir.getAbsolutePath()));
+        //autogen.sh runs configure
+        LOGGER.debug("waiting for jhbuild build bootstrap process");
+        jhbuildAutogenProcess.waitFor();
+        if(jhbuildAutogenProcess.exitValue() != 0) {
+            handleBuilderFailure(JHBUILD_TEMPLATE,
+                    BuildStep.BOOTSTRAP,
+                    jhbuildAutogenProcess);
+        }
+        LOGGER.debug("jhbuild build bootstrap process finished");
+        synchronized(this) {
+            if(canceled) {
+                return false;
+            }
+        }
+        Process jhbuildMakeProcess = createProcess(jhbuildCloneDir,
+                installationPrefixPath,
+                make, String.format("-j%d", parallelism));
+        LOGGER.debug("waiting for jhbuild build process");
+        jhbuildMakeProcess.waitFor();
+        if(jhbuildMakeProcess.exitValue() != 0) {
+            handleBuilderFailure(JHBUILD_TEMPLATE,
+                    BuildStep.MAKE,
+                    jhbuildMakeProcess);
+        }
+        LOGGER.debug("jhbuild build process finished");
+        synchronized(this) {
+            if(canceled) {
+                return false;
+            }
+        }
+        Process jhbuildMakeInstallProcess = createProcess(jhbuildCloneDir,
+                installationPrefixPath,
+                make, "install");
+        LOGGER.debug("waiting for jhbuild installation process");
+        jhbuildMakeInstallProcess.waitFor();
+        if(jhbuildMakeInstallProcess.exitValue() != 0) {
+            handleBuilderFailure(JHBUILD_TEMPLATE,
+                    BuildStep.MAKE_INSTALL,
+                    jhbuildMakeInstallProcess);
+        }
+        LOGGER.debug("jhbuild installation process finished");
+        jhbuild = JHBUILD_TEMPLATE;
+        //is found in modified path of every process built with
+        //buildProcess
+        LOGGER.debug(String.format("using jhbuild command '%s'",
+                jhbuild));
         return true;
     }
 
@@ -838,8 +894,8 @@ public class JHBuildJavaWrapper {
      * Check canceled state.
      *
      * @return {@code true} if {@link #cancelInstallModuleset() } has been
-     * invoked and no other build process started so far, {@code false}
-     * otherwise
+     *     invoked and no other build process started so far, {@code false}
+     *     otherwise
      */
     public boolean isCanceled() {
         return canceled;
@@ -853,11 +909,14 @@ public class JHBuildJavaWrapper {
      * {@link #cancelInstallModuleset() }.
      *
      * @param moduleName the module to build
-     * @throws IOException
-     * @throws ExtractionException
-     * @throws InterruptedException
-     * @throws MissingSystemBinaryException
-     * @throws BuildFailureException
+     * @return {@code true} if successful, {@code false} if canceled
+     * @throws IOException if such an exception occurs
+     * @throws ExtractionException if such an exception occurs
+     * @throws InterruptedException if such an exception occurs
+     * @throws MissingSystemBinaryException if such an exception occurs
+     * @throws BuildFailureException if such an exception occurs
+     * @throws ModuleBuildFailureException if such an exception occurs
+     * @throws DownloadException if such an exception occurs
      */
     public boolean installModuleset(String moduleName) throws IOException,
             ExtractionException,
@@ -868,9 +927,8 @@ public class JHBuildJavaWrapper {
             DownloadException {
         InputStream modulesetInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetInputStream != null;
-        boolean retValue = installModuleset(modulesetInputStream,
+        return installModuleset(modulesetInputStream,
                 moduleName);
-        return retValue;
     }
 
     /**
@@ -880,15 +938,19 @@ public class JHBuildJavaWrapper {
      * The module installation can be canceled from another thread with
      * {@link #cancelInstallModuleset() }.
      *
-     * @param modulesetInputStream
-     * @param moduleName
-     * @throws IOException
-     * @throws ExtractionException
-     * @throws InterruptedException
-     * @throws MissingSystemBinaryException
-     * @throws BuildFailureException
+     * @param modulesetInputStream the input stream containing the module
+     *     information
+     * @param moduleName the name of the module to build
+     * @return {@code true} if successful, {@code false} if canceled
+     * @throws IOException if such an exception occurs
+     * @throws ExtractionException if such an exception occurs
+     * @throws InterruptedException if such an exception occurs
+     * @throws MissingSystemBinaryException if such an exception occurs
+     * @throws BuildFailureException if such an exception occurs
      * @throws IllegalArgumentException if {@code modulesetInputStream} is
-     * {@code null}
+     *     {@code null}
+     * @throws ModuleBuildFailureException if such an exception occurs
+     * @throws DownloadException if such an exception occurs
      */
     /*
     internal implementation notes:
@@ -903,7 +965,8 @@ public class JHBuildJavaWrapper {
             MissingSystemBinaryException,
             BuildFailureException,
             ModuleBuildFailureException,
-            DownloadException {
+            DownloadException,
+            IllegalArgumentException {
         canceled = false;
         if(modulesetInputStream == null) {
             throw new IllegalArgumentException("modulesetInputStream mustn't be null");
@@ -952,7 +1015,7 @@ public class JHBuildJavaWrapper {
         File modulesetFile = Files.createTempFile(JHBuildJavaWrapper.class.getSimpleName(), //prefix
                 "moduleset" //suffix
         ).toFile();
-        IOUtils.copy(modulesetInputStream, new FileOutputStream(modulesetFile));
+        IOUtils.copy(modulesetInputStream, Files.newOutputStream(modulesetFile.toPath()));
         String jHBuildrcTemplate = String.format("prefix=\"%s\"\n"
                 + "checkoutroot = \"%s\"",
                 installationPrefixDir.getAbsolutePath(),
@@ -961,7 +1024,7 @@ public class JHBuildJavaWrapper {
                 "jhbuildrc" //suffix
         ).toFile();
         IOUtils.write(jHBuildrcTemplate,
-                new FileOutputStream(jHBuildrcFile),
+                Files.newOutputStream(jHBuildrcFile.toPath()),
                 Charsets.UTF_8);
         Process jhbuildProcess = createProcess(installationPrefixPath,
                 jhbuild,
@@ -1015,35 +1078,35 @@ public class JHBuildJavaWrapper {
         List<BuildStepProcess> buildStepProcesses = generateBuildStepProcessesAutotools(installationPrefixPath,
                 parallelism,
                 CONFIGURE);
-        String retValue = installPrerequisiteAutotools(
+        return installPrerequisiteAutotools(
                 installationPrefixPath,
                 binary,
                 binaryDescription,
                 downloadCombi,
                 patchDownloadCombis,
                 buildStepProcesses);
-        return retValue;
     }
 
     /**
      * Installs an autotools-based prerequisiste.
      *
      * @param installationPrefixPath the {@code PATH} of the installation prefix
-     * to use
+     *     to use
      * @param binary the binary which is supposed to be installed and returned
-     * after successful, non-canceled installation (see return value
-     * description)
+     *     after successful, non-canceled installation (see return value
+     *     description)
      * @param binaryDescription a description of the binary to be installed used
-     * in logging messages (can be the name of the binary or a short description
-     * like "C compiler")
+     *     in logging messages (can be the name of the binary or a short
+     *     description like "C compiler")
      * @return the path of the installed binary, the empty string in case no
-     * binary has been installed, but the installation hasn't been canceled or
-     * {@code null} if the installation or any part of it has been aborted
-     * @throws IOException
-     * @throws ExtractionException
-     * @throws MissingSystemBinaryException
-     * @throws InterruptedException
-     * @throws BuildFailureException
+     *     binary has been installed, but the installation hasn't been canceled
+     *     or {@code null} if the installation or any part of it has been
+     *     aborted
+     * @throws IOException if such an exception occurs
+     * @throws ExtractionException if such an exception occurs
+     * @throws MissingSystemBinaryException if such an exception occurs
+     * @throws InterruptedException if such an exception occurs
+     * @throws BuildFailureException if such an exception occurs
      */
     private String installPrerequisiteAutotools(String installationPrefixPath,
             String binary,
@@ -1092,7 +1155,7 @@ public class JHBuildJavaWrapper {
         if(patchDownloadCombis != null
                 && !patchDownloadCombis.isEmpty()) {
             try {
-                BinaryTools.validateBinary(patch,
+                BinaryUtils.validateBinary(patch,
                         "patch",
                         installationPrefixPath);
             }catch(BinaryValidationException ex1) {
@@ -1147,7 +1210,7 @@ public class JHBuildJavaWrapper {
         //need make for building and it's overly hard to bootstrap
         //without it, so force installation out of JHBuild wrapper
         try {
-            BinaryTools.validateBinary(make,
+            BinaryUtils.validateBinary(make,
                     "make",
                     installationPrefixPath);
         }catch(BinaryValidationException ex1) {
@@ -1190,8 +1253,8 @@ public class JHBuildJavaWrapper {
      * rudimentary way.
      *
      * @param pcFileName the name of the {@code .pc} file to search for
-     * @throws IOException if {@link Files.walk} throws such an exception
      * @return {@code true} if the file has been found, {@code false} otherwise
+     * @throws IOException if {@link Files#walk(Path, FileVisitOption...)} throws such an exception
      */
     private boolean checkLibPresence(File installationPrefixDir,
             String pcFileName) throws IOException {
@@ -1211,9 +1274,9 @@ public class JHBuildJavaWrapper {
      * {@code root} privileges work.
      *
      * @param installationPrefixPath the installation prefix path to pass to all
-     * processes environment
+     *     processes environment
      * @param additionalConfigureOptions additional {@code configure} options
-     * passed after the necessary {@code --prefix}
+     *     passed after the necessary {@code --prefix}
      * @return the list of generated build step processes
      */
     private List<BuildStepProcess> generateBuildStepProcessesAutotools(String installationPrefixPath,
@@ -1223,7 +1286,7 @@ public class JHBuildJavaWrapper {
         assert parallelism >= 1: String.format("parallelism has to be >= 1 in "
                 + "order to make sense (was %s)",
                 parallelism);
-        List<BuildStepProcess> buildStepProcesses = new LinkedList<>(Arrays.asList(new BuildStepProcess() {
+        return new LinkedList<>(Arrays.asList(new BuildStepProcess() {
             @Override
             public Process getProcess(File extractionLocationDir) throws IOException {
                 List<String> commandList = new LinkedList<>(Arrays.asList(sh, configureName,
@@ -1231,7 +1294,7 @@ public class JHBuildJavaWrapper {
                 for(String additionalConfigureOption : additionalConfigureOptions) {
                     commandList.add(additionalConfigureOption);
                 }
-                String[] commands = commandList.toArray(new String[commandList.size()]);
+                String[] commands = commandList.toArray(new String[0]);
                 Process configureProcess = createProcess(extractionLocationDir,
                         ImmutableMap.<String, String>builder()
                                 .put(PATH, installationPrefixPath)
@@ -1252,7 +1315,7 @@ public class JHBuildJavaWrapper {
                 new BuildStepProcess() {
                     @Override
                     public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process makeProcess = createProcess(extractionLocationDir,
+                        return createProcess(extractionLocationDir,
                                 ImmutableMap.<String, String>builder()
                                         .put(PATH, installationPrefixPath)
                                         .put("CFLAGS", String.format("-I%s -L%s", new File(installationPrefixDir, "include").getAbsolutePath(),
@@ -1260,7 +1323,6 @@ public class JHBuildJavaWrapper {
                 //                        .put("LDFLAGS", String.format("-L%s", new File(installationPrefixDir, "lib").getAbsolutePath()))
                                         .build(),
                                 make, String.format("-j%d", parallelism));
-                        return makeProcess;
                     }
 
                     @Override
@@ -1271,11 +1333,10 @@ public class JHBuildJavaWrapper {
                 new BuildStepProcess() {
                     @Override
                     public Process getProcess(File extractionLocationDir) throws IOException {
-                        Process makeInstallProcess = createProcess(extractionLocationDir,
+                        return createProcess(extractionLocationDir,
                                 installationPrefixPath,
                                 make,
                                 "install");
-                        return makeInstallProcess;
                     }
 
                     @Override
@@ -1283,7 +1344,6 @@ public class JHBuildJavaWrapper {
                         return BuildStep.MAKE_INSTALL;
                     }
                 }));
-        return buildStepProcesses;
     }
 
     private interface BuildStepProcess {

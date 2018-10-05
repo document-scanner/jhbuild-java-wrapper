@@ -3,25 +3,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package de.richtercloud.jhbuild.wrapper.it;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.nio.file.Files;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import de.richtercloud.jhbuild.java.wrapper.ActionOnMissingBinary;
 import de.richtercloud.jhbuild.java.wrapper.ArchitectureNotRecognizedException;
 import de.richtercloud.jhbuild.java.wrapper.BuildFailureException;
@@ -33,6 +25,14 @@ import de.richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
 import de.richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
 import de.richtercloud.jhbuild.java.wrapper.download.DownloadException;
 import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.nio.file.Files;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -42,6 +42,7 @@ public class JHBuildJavaWrapperIT {
     private final static Logger LOGGER = LoggerFactory.getLogger(JHBuildJavaWrapperIT.class);
 
     @Test
+    @SuppressWarnings("PMD.JUnitTestsShouldIncludeAssert")
     public void testExampleBuild() throws IOException,
             OSNotRecognizedException,
             ArchitectureNotRecognizedException,
@@ -79,7 +80,7 @@ public class JHBuildJavaWrapperIT {
         InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetFileInputStream != null;
         jHBuildJavaWrapper.installModuleset(modulesetFileInputStream,
-                "postgresql-9.6.3");
+                "postgresql-10.5");
         //omitted parameter causing fallback to default moduleset
         jHBuildJavaWrapper = new JHBuildJavaWrapper(installationPrefixDir,
                 downloadDir,
@@ -97,6 +98,6 @@ public class JHBuildJavaWrapperIT {
                     //and stderr are printed in BuildFailureException message)
                 new StringWriter() //stderrAppendable
         );
-        jHBuildJavaWrapper.installModuleset("postgresql-9.6.3");
+        jHBuildJavaWrapper.installModuleset("postgresql-10.5");
     }
 }

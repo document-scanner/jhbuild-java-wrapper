@@ -3,21 +3,23 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package de.richtercloud.jhbuild.java.wrapper.download;
 
+import de.richtercloud.jhbuild.java.wrapper.ExtractionException;
+import de.richtercloud.jhbuild.java.wrapper.ExtractionMode;
+import de.richtercloud.jhbuild.java.wrapper.MD5SumCheckUnequalsCallback;
+import de.richtercloud.jhbuild.java.wrapper.MD5SumCheckUnequalsCallbackReaction;
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,10 +40,6 @@ import org.apache.commons.compress.utils.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import de.richtercloud.jhbuild.java.wrapper.ExtractionException;
-import de.richtercloud.jhbuild.java.wrapper.ExtractionMode;
-import de.richtercloud.jhbuild.java.wrapper.MD5SumCheckUnequalsCallback;
-import de.richtercloud.jhbuild.java.wrapper.MD5SumCheckUnequalsCallbackReaction;
 
 /**
  *
@@ -54,24 +52,27 @@ public class AutoDownloader implements Downloader {
      * Downloads a file a file located at {@code donwloadURL}, compares its MD5
      * checksum with {@code md5Sum} and extracts it into
      * {@code extractionLocation}.If the download or the verification failed
- the caller can take actions in {@code mD5SumCheckUnequalsCallback} and
-    {@code downloadFailureCallback} callbacks.
+     * the caller can take actions in {@code mD5SumCheckUnequalsCallback} and
+     * {@code downloadFailureCallback} callbacks.
      *
      * @param downloadCombi the download combi containing all relevant
-     * information for the download and the extraction
+     *     information for the download and the extraction
      * @param skipMD5SumCheck a flag indicating that the MD5 checksum check
-     * should be skipped
+     *     should be skipped
      * @param downloadFailureCallback the download failure callback to retrieve
-     * the {@link DownloadFailureCallbackReation}
+     *     the {@link DownloadFailureCallbackReation}
      * @param mD5SumCheckUnequalsCallback the MD5 checksum check failure
-     * callback to retrieve the {@link MD5SumCheckUnequalsCallbackReaction}
+     *     callback to retrieve the {@link MD5SumCheckUnequalsCallbackReaction}
+     * @param downloadEmptyCallback callback invoked if the download is empty
      * @return {@code false} if the validation, download or extraction have been
-     * canceled, otherwise {@code true}, but exception might have been thrown
-     * @throws IOException
-     * @throws ExtractionException
+     *     canceled, otherwise {@code true}, but exception might have been
+     *     thrown
+     * @throws IOException if an I/O exception occurs
+     * @throws ExtractionException if an exception occurs during extraction
+     * @throws DownloadException if an exception occurs during download
      * @throws IllegalArgumentException if the extraction directory specified in
-     * {@code downloadCombi} is an existing path which doesn't point to a
-     * directory
+     *     {@code downloadCombi} is an existing path which doesn't point to a
+     *     directory
      */
     @Override
     public boolean downloadFile(DownloadCombi downloadCombi,
@@ -80,7 +81,8 @@ public class AutoDownloader implements Downloader {
             MD5SumCheckUnequalsCallback mD5SumCheckUnequalsCallback,
             DownloadEmptyCallback downloadEmptyCallback) throws IOException,
             ExtractionException,
-            DownloadException {
+            DownloadException,
+            IllegalArgumentException {
         if(downloadCombi == null) {
             throw new IllegalArgumentException("downloadCombi mustn't be null");
         }
@@ -131,7 +133,7 @@ public class AutoDownloader implements Downloader {
         return true;
     }
 
-    @SuppressWarnings("NestedAssignment")
+    @SuppressWarnings({"NestedAssignment", "PMD.AssignmentInOperand"})
     protected boolean download(DownloadCombi downloadCombi,
             boolean skipMD5SumCheck,
             DownloadFailureCallback downloadFailureCallback,
@@ -155,7 +157,7 @@ public class AutoDownloader implements Downloader {
             if(!downloadCombi.getMd5Sum().isEmpty() && new File(downloadCombi.getDownloadTarget()).exists()) {
                 LOGGER.debug(String.format("reading download file '%s' for MD5 sum calculation",
                         downloadCombi.getDownloadTarget()));
-                String md5 = DigestUtils.md5Hex(new BufferedInputStream(new FileInputStream(downloadCombi.getDownloadTarget())));
+                String md5 = DigestUtils.md5Hex(new BufferedInputStream(Files.newInputStream(Paths.get(downloadCombi.getDownloadTarget()))));
                 if(downloadCombi.getMd5Sum().equals(md5)) {
                     LOGGER.debug(String.format("MD5 sum %s of download file '%s' matches",
                             downloadCombi.getMd5Sum(),
@@ -182,7 +184,7 @@ public class AutoDownloader implements Downloader {
             int numberOfRetriesEmpty = 0;
             while(!success) {
                 URL downloadURLURL = new URL(downloadCombi.getDownloadURL());
-                try (FileOutputStream out = new FileOutputStream(downloadCombi.getDownloadTarget());
+                try (OutputStream out = Files.newOutputStream(Paths.get(downloadCombi.getDownloadTarget()));
                         InputStream downloadURLInputStream = downloadURLURL.openStream();
                 ) {
                     LOGGER.debug(String.format("downloading from URL '%s' into file '%s'",
@@ -196,7 +198,7 @@ public class AutoDownloader implements Downloader {
                             downloadCombi.getDownloadURL()));
                     return false;
                 }
-                String downloadTargetContent = IOUtils.toString(new FileInputStream(downloadCombi.getDownloadTarget()),
+                String downloadTargetContent = IOUtils.toString(Files.newInputStream(Paths.get(downloadCombi.getDownloadTarget())),
                         Charsets.UTF_8);
                 if(downloadTargetContent.isEmpty()) {
                     DownloadEmptyCallbackReation reaction = downloadEmptyCallback.run(numberOfRetriesEmpty);
@@ -213,7 +215,7 @@ public class AutoDownloader implements Downloader {
                 }else {
                     LOGGER.debug(String.format("calculating MD5 checksum for download target file '%s'",
                             downloadCombi.getDownloadTarget()));
-                    String md5 = DigestUtils.md5Hex(new BufferedInputStream(new FileInputStream(downloadCombi.getDownloadTarget())));
+                    String md5 = DigestUtils.md5Hex(new BufferedInputStream(Files.newInputStream(Paths.get(downloadCombi.getDownloadTarget()))));
                     if(downloadCombi.getMd5Sum().equals(md5)) {
                         success = true;
                     }else {
@@ -248,8 +250,9 @@ public class AutoDownloader implements Downloader {
                     + "to a directory",
                     extractionDir.getAbsolutePath()));
         }
-        if(!extractionDir.exists() || (extractionDir.exists() && extractionDir.list().length == 0)) {
-            FileInputStream fileInputStream = new FileInputStream(downloadCombi.getDownloadTarget());
+        if(!extractionDir.exists()
+                || extractionDir.exists() && extractionDir.list().length == 0) {
+            InputStream fileInputStream = Files.newInputStream(Paths.get(downloadCombi.getDownloadTarget()));
             if(null == downloadCombi.getExtractionMode()) {
                 //if extractionMode was EXTRACTION_MODE_NONE the method
                 //would already have returned
@@ -287,7 +290,7 @@ public class AutoDownloader implements Downloader {
                                 if (!outputFileParent.exists()) {
                                     Files.createDirectories(outputFileParent.toPath());
                                 }
-                                try (OutputStream outputFileStream = new FileOutputStream(outputFile)) {
+                                try (OutputStream outputFileStream = Files.newOutputStream(outputFile.toPath())) {
                                     IOUtils.copy(tarArchiveInputStream, outputFileStream);
                                 }
                             }
@@ -322,7 +325,7 @@ public class AutoDownloader implements Downloader {
                     Files.createDirectories(extractionDir.toPath());
                     LOGGER.debug(String.format("extracting .zip archive into '%s'",
                             extractionDir));
-                    try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(downloadCombi.getDownloadTarget()))) {
+                    try (ZipInputStream zipIn = new ZipInputStream(Files.newInputStream(Paths.get(downloadCombi.getDownloadTarget())))) {
                         ZipEntry entry = zipIn.getNextEntry();
                         // iterates over entries in the zip file
                         while (entry != null) {
@@ -333,7 +336,7 @@ public class AutoDownloader implements Downloader {
                             }
                             if (!entry.isDirectory()) {
                                 // if the entry is a file, extracts it
-                                DownloadTools.extractFile(zipIn, filePath);
+                                DownloadUtils.extractFile(zipIn, filePath);
                             } else {
                                 // if the entry is a directory, make the directory
                                 File dir = new File(filePath);
@@ -370,7 +373,7 @@ public class AutoDownloader implements Downloader {
      * This implementation always returns {@code false}.
      *
      * @return {@code true} if the download ought to be canceled as soon as
-     * possible, {@code false} otherwise
+     *     possible, {@code false} otherwise
      */
     protected boolean isCanceled() {
         return false;
@@ -380,17 +383,16 @@ public class AutoDownloader implements Downloader {
      * Possibility for subclasses to retrieve data for a new
      * {@link DownloadCombi} (from the user, from a website, etc.).This implementation always returns {@code null}.
      *
-     *
      * @param ex a reference to the exception which caused the failure
      * @param previousDownloadCombi a reference to the previous download combi
-     * so that it can eventually be returned to indicate that download ought to
-     * be retried
+     *     so that it can eventually be returned to indicate that download ought
+     *     to be retried
      * @param numberOfRetries the number of retries of the download after
-     * previous failures
+     *     previous failures
      * @param downloadFailureCallback a download failure callback to retrieve
-     * the {@link DownloadFailureCallbackReation}
+     *     the {@link DownloadFailureCallbackReation}
      * @return a new or the same {@link DownloadCombi} or {@code null} if the
-     * download ought to be canceled
+     *     download ought to be canceled
      */
     protected DownloadCombi handleDownloadException(Exception ex,
             DownloadCombi previousDownloadCombi,

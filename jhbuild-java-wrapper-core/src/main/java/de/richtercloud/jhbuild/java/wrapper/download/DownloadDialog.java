@@ -3,31 +3,34 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package de.richtercloud.jhbuild.java.wrapper.download;
 
+import de.richtercloud.jhbuild.java.wrapper.ExtractionMode;
 import java.awt.Window;
 import org.apache.commons.lang3.StringUtils;
-import de.richtercloud.jhbuild.java.wrapper.ExtractionMode;
 
 /**
  *
  * @author richter
  */
+@SuppressWarnings({"PMD.FieldDeclarationsShouldBeAtStartOfClass",
+    "PMD.SingularField"})
 public class DownloadDialog extends javax.swing.JDialog {
     private static final long serialVersionUID = 1L;
-    private boolean canceled = false;
+    private boolean canceled;
 
     /**
      * Creates new form MySQLDownloadDialog
+     * @param parent the dialog parent
      */
     public DownloadDialog(Window parent) {
         super(parent,
@@ -87,6 +90,7 @@ public class DownloadDialog extends javax.swing.JDialog {
 
         downloadButton.setText("Download");
         downloadButton.addActionListener(new java.awt.event.ActionListener() {
+            @Override
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 downloadButtonActionPerformed(evt);
             }
@@ -94,6 +98,7 @@ public class DownloadDialog extends javax.swing.JDialog {
 
         cancelButton.setText("Cancel");
         cancelButton.addActionListener(new java.awt.event.ActionListener() {
+            @Override
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 cancelButtonActionPerformed(evt);
             }
