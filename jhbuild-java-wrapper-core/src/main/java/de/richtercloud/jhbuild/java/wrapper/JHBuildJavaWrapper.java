@@ -16,7 +16,7 @@ package de.richtercloud.jhbuild.java.wrapper;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
-import de.richtercloud.execution.tools.ExecutionTools;
+import de.richtercloud.execution.tools.ExecutionUtils;
 import de.richtercloud.execution.tools.OutputReaderThread;
 import de.richtercloud.jhbuild.java.wrapper.download.DownloadCombi;
 import de.richtercloud.jhbuild.java.wrapper.download.DownloadEmptyCallback;
@@ -26,6 +26,7 @@ import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -163,19 +164,19 @@ public class JHBuildJavaWrapper {
     private final File downloadDir;
     private boolean inited;
     /**
-     * The {@link Appendable} {@code stdout} of created processes ought to be
+     * The {@link OutputStream} {@code stdout} of created processes ought to be
      * written to. {@code null} indicates that {@code stdout} of the JVM ought
      * to be used (exception and similar messages might contain the placeholder
      * {@code [redirected]} in this case).
      */
-    private final Appendable stdoutAppendable;
+    private final OutputStream stdoutOutputStream;
     /**
-     * The {@link Appendable} {@code stderr} of created processes ought to be
+     * The {@link OutputStream} {@code stderr} of created processes ought to be
      * written to. {@code null} indicates that {@code stderr} of the JVM ought
      * to be used (exception and similar messages might contain the placeholder
      * {@code [redirected]} in this case).
      */
-    private final Appendable stderrAppendable;
+    private final OutputStream stderrOutputStream;
     private boolean canceled;
     /**
      * A pointer to the currently active process which allows to destroy it in
@@ -204,8 +205,8 @@ public class JHBuildJavaWrapper {
             ActionOnMissingBinary actionOnMissingOpenssl,
             Downloader downloader,
             boolean skipMD5SumCheck,
-            Appendable stdoutAppendable,
-            Appendable stderrAppendable) throws IOException {
+            OutputStream stdoutOutputStream,
+            OutputStream stderrOutputStream) throws IOException {
         this(INSTALLATION_PREFIX_DIR_DEFAULT,
                 DOWNLOAD_DIR_DEFAULT,
                 actionOnMissingGit,
@@ -217,8 +218,8 @@ public class JHBuildJavaWrapper {
                 actionOnMissingOpenssl,
                 downloader,
                 skipMD5SumCheck,
-                stdoutAppendable,
-                stderrAppendable);
+                stdoutOutputStream,
+                stderrOutputStream);
     }
 
     public JHBuildJavaWrapper(File installationPrefixDir,
@@ -232,8 +233,8 @@ public class JHBuildJavaWrapper {
             ActionOnMissingBinary actionOnMissingOpenssl,
             Downloader downloader,
             boolean skipMD5SumCheck,
-            Appendable stdoutAppendable,
-            Appendable stderrAppendable) throws IOException {
+            OutputStream stdoutOutputStream,
+            OutputStream stderrOutputStream) throws IOException {
         this(installationPrefixDir,
                 downloadDir,
                 GIT_DEFAULT,
@@ -248,8 +249,8 @@ public class JHBuildJavaWrapper {
                 OPENSSL_DEFAULT,
                 downloader,
                 skipMD5SumCheck,
-                stdoutAppendable,
-                stderrAppendable,
+                stdoutOutputStream,
+                stderrOutputStream,
                 actionOnMissingGit,
                 actionOnMissingZlib,
                 actionOnMissingJHBuild,
@@ -274,8 +275,8 @@ public class JHBuildJavaWrapper {
             String openssl,
             Downloader downloader,
             boolean skipMD5SumCheck,
-            Appendable stdoutAppendable,
-            Appendable stderrAppendable,
+            OutputStream stdoutOutputStream,
+            OutputStream stderrOutputStream,
             ActionOnMissingBinary actionOnMissingGit,
             ActionOnMissingBinary actionOnMissingZlib,
             ActionOnMissingBinary actionOnMissingJHBuild,
@@ -318,8 +319,8 @@ public class JHBuildJavaWrapper {
         this.actionOnMissingCpan = actionOnMissingCpan;
         this.actionOnMissingOpenssl = actionOnMissingOpenssl;
         this.skipMD5SumCheck = skipMD5SumCheck;
-        this.stdoutAppendable = stdoutAppendable;
-        this.stderrAppendable = stderrAppendable;
+        this.stdoutOutputStream = stdoutOutputStream;
+        this.stderrOutputStream = stderrOutputStream;
         if(parallelism < 1) {
             throw new IllegalArgumentException(String.format("parallelism value of less than 1 doesn't make sense (was %d)",
                     parallelism));
@@ -377,11 +378,11 @@ public class JHBuildJavaWrapper {
                 directory != null ? String.format("directory '%s'",
                         directory.getAbsolutePath())
                         : "current directory"));
-        Triple<Process, OutputReaderThread, OutputReaderThread> process = ExecutionTools.createProcess(directory,
+        Triple<Process, OutputReaderThread, OutputReaderThread> process = ExecutionUtils.createProcess(directory,
                 env,
                 sh,
-                stdoutAppendable,
-                stderrAppendable,
+                stdoutOutputStream,
+                stderrOutputStream,
                 commands);
         processOutputReaderThreadMap.put(process.getLeft(),
                 new ImmutablePair<>(process.getMiddle(),
@@ -418,9 +419,9 @@ public class JHBuildJavaWrapper {
         }
         assert downloadDir.exists() && downloadDir.isDirectory();
         LOGGER.trace(String.format("silenceStdout: %s",
-                stdoutAppendable));
+                stdoutOutputStream));
         LOGGER.trace(String.format("silenceStderr: %s",
-                stderrAppendable));
+                stderrOutputStream));
         try {
             BinaryUtils.validateBinary(cc,
                     "cc",
@@ -753,11 +754,11 @@ public class JHBuildJavaWrapper {
                 String stderr = REDIRECTED_TEMPLATE;
                 if(stdoutReaderThread != null) {
                     stdoutReaderThread.join();
-                    stdout = stdoutReaderThread.getOutputAppendable().toString();
+                    stdout = IOUtils.toString(stdoutReaderThread.getProcessOutputStream());
                 }
                 if(stderrReaderThread != null) {
                     stderrReaderThread.join();
-                    stderr = stderrReaderThread.getOutputAppendable().toString();
+                    stderr = IOUtils.toString(stderrReaderThread.getProcessOutputStream());
                 }
                 throw new IllegalStateException(String.format("The "
                                 + "jhbuild clone directory '%s' already "
@@ -862,15 +863,15 @@ public class JHBuildJavaWrapper {
             InterruptedException {
         String stdout = null;
         String stderr = null;
-        if(stdoutAppendable != null) {
+        if(stdoutOutputStream != null) {
             OutputReaderThread stdoutReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getKey();
             stdoutReaderThread.join();
-            stdout = stdoutReaderThread.getOutputAppendable().toString();
+            stdout = IOUtils.toString(stdoutReaderThread.getProcessOutputStream());
         }
-        if(stderrAppendable != null) {
+        if(stderrOutputStream != null) {
             OutputReaderThread stderrReaderThread = processOutputReaderThreadMap.get(failedBuildProcess).getValue();
             stderrReaderThread.join();
-            stderr = stderrReaderThread.getOutputAppendable().toString();
+            stderr = IOUtils.toString(stderrReaderThread.getProcessOutputStream());
         }
         throw new BuildFailureException(moduleName,
                 buildFailureStep,
@@ -998,11 +999,11 @@ public class JHBuildJavaWrapper {
             String stderr = REDIRECTED_TEMPLATE;
             if(stdoutReaderThread != null) {
                 stdoutReaderThread.join();
-                stdout = stdoutReaderThread.getOutputAppendable().toString();
+                stdout = IOUtils.toString(stdoutReaderThread.getProcessOutputStream());
             }
             if(stderrReaderThread != null) {
                 stderrReaderThread.join();
-                stderr = stderrReaderThread.getOutputAppendable().toString();
+                stderr = IOUtils.toString(stderrReaderThread.getProcessOutputStream());
             }
             throw new ModuleBuildFailureException(String.format("jhbuild "
                     + "bootstrap process returned with code %d (stdout was "
@@ -1047,11 +1048,11 @@ public class JHBuildJavaWrapper {
             String stderr = REDIRECTED_TEMPLATE;
             if(stdoutReaderThread != null) {
                 stdoutReaderThread.join();
-                stdout = stdoutReaderThread.getOutputAppendable().toString();
+                stdout = IOUtils.toString(stdoutReaderThread.getProcessOutputStream());
             }
             if(stderrReaderThread != null) {
                 stderrReaderThread.join();
-                stderr = stderrReaderThread.getOutputAppendable().toString();
+                stderr = IOUtils.toString(stderrReaderThread.getProcessOutputStream());
             }
             throw new ModuleBuildFailureException(String.format("jhbuild "
                     + "returned with code %d during building of module (stdout "
@@ -1201,7 +1202,7 @@ public class JHBuildJavaWrapper {
                 String patchProcessStdout = REDIRECTED_TEMPLATE;
                 if(stdoutReaderThread != null) {
                     stdoutReaderThread.join();
-                    patchProcessStdout = stdoutReaderThread.getOutputAppendable().toString();
+                    patchProcessStdout = IOUtils.toString(stdoutReaderThread.getProcessOutputStream());
                 }
                 LOGGER.debug(String.format("successful patch process' output was: %s",
                         patchProcessStdout));

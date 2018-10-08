@@ -25,10 +25,10 @@ import de.richtercloud.jhbuild.java.wrapper.OSNotRecognizedException;
 import de.richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
 import de.richtercloud.jhbuild.java.wrapper.download.DownloadException;
 import de.richtercloud.jhbuild.java.wrapper.download.Downloader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.nio.file.Files;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -72,10 +72,11 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 downloader, //downloader
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable (saves log capacity on Travis CI service
-                    //with 4MB log size limit and doesn't hurt because stdout
-                    //and stderr are printed in BuildFailureException message)
-                new StringWriter() //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream (saves log
+                    //capacity on Travis CI service with 4MB log size limit and
+                    //doesn't hurt because stdout and stderr are printed in
+                    //BuildFailureException message)
+                new ByteArrayOutputStream() //stderrOutputStream
         );
         InputStream modulesetFileInputStream = JHBuildJavaWrapper.class.getResourceAsStream("/moduleset-default.xml");
         assert modulesetFileInputStream != null;
@@ -93,10 +94,11 @@ public class JHBuildJavaWrapperIT {
                 ActionOnMissingBinary.DOWNLOAD,
                 downloader, //downloader
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable (saves log capacity on Travis CI service
-                    //with 4MB log size limit and doesn't hurt because stdout
-                    //and stderr are printed in BuildFailureException message)
-                new StringWriter() //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream (saves log
+                    //capacity on Travis CI service with 4MB log size limit and
+                    //doesn't hurt because stdout and stderr are printed in
+                    //BuildFailureException message)
+                new ByteArrayOutputStream() //stderrOutputStream
         );
         jHBuildJavaWrapper.installModuleset("postgresql-10.5");
     }

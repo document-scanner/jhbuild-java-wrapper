@@ -16,10 +16,10 @@ package de.richtercloud.jhbuild.java.wrapper;
 
 import de.richtercloud.jhbuild.java.wrapper.download.AutoDownloader;
 import de.richtercloud.jhbuild.java.wrapper.download.DownloadException;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.Random;
 import static org.junit.Assert.*;
@@ -82,8 +82,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -121,8 +121,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -204,8 +204,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -246,8 +246,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -288,8 +288,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
@@ -331,8 +331,8 @@ public class JHBuildJavaWrapperTest {
                 JHBuildJavaWrapper.OPENSSL_DEFAULT,
                 new AutoDownloader(),
                 false, //skipMD5SumCheck
-                new StringWriter(), //stdoutAppendable
-                new StringWriter(), //stderrAppendable
+                new ByteArrayOutputStream(), //stdoutOutputStream
+                new ByteArrayOutputStream(), //stderrOutputStream
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
                 ActionOnMissingBinary.DOWNLOAD,
